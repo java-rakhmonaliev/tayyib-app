@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../services/api_service.dart';
+import '../services/auth_service.dart';
 import '../services/preferences_service.dart';
 import '../models/analysis_result.dart';
 import '../widgets/brutal_button.dart';
+import 'login_screen.dart';
 import 'result_screen.dart';
 import 'scanner_screen.dart';
 
@@ -130,6 +132,79 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
+  Future<void> _showProfileSheet() async {
+    final user = await AuthService.getSavedUser();
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Color(0xFFFFFDF5),
+          border: Border(top: BorderSide(color: Colors.black, width: 3)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  color: Colors.black,
+                  child: const Center(child: Icon(Icons.person, color: Colors.white, size: 24)),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(user?.username ?? '', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+                    Text(user?.email ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Colors.grey)),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFD93D),
+                border: Border.all(color: Colors.black, width: 2),
+                boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3), blurRadius: 0)],
+              ),
+              child: Row(
+                children: [
+                  const Text('MADHAB:', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1)),
+                  const SizedBox(width: 8),
+                  Text(user?.madhab.toUpperCase() ?? '', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            BrutalButton(
+              label: 'LOGOUT',
+              bg: const Color(0xFFFF6B6B),
+              fg: Colors.white,
+              onTap: () async {
+                await AuthService.logout();
+                if (mounted) {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (_) => false,
+                  );
+                }
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -159,6 +234,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
           ],
         ),
+        actions: [
+          GestureDetector(
+            onTap: _showProfileSheet,
+            child: Container(
+              margin: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.white24, width: 1.5),
+              ),
+              child: const Icon(Icons.person, color: Colors.white, size: 18),
+            ),
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: Container(
@@ -231,13 +319,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     return Container(
       color: Colors.black,
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('MADHAB:', style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
-          const SizedBox(width: 12),
-          _madhabBtn('hanafi', 'Hanafi'),
-          const SizedBox(width: 8),
-          _madhabBtn('shafii', "Shafi'i"),
+          const Text('SCHOOL OF THOUGHT', style: TextStyle(color: Colors.white54, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _madhabBtn('hanafi', 'Hanafi'),
+              const SizedBox(width: 6),
+              _madhabBtn('maliki', 'Maliki'),
+              const SizedBox(width: 6),
+              _madhabBtn('shafii', "Shafi'i"),
+              const SizedBox(width: 6),
+              _madhabBtn('hanbali', 'Hanbali'),
+            ],
+          ),
         ],
       ),
     );
@@ -245,28 +342,31 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   Widget _madhabBtn(String value, String label) {
     final selected = _madhab == value;
-    return GestureDetector(
-      onTap: () => _setMadhab(value),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFFFFD93D) : Colors.transparent,
-          border: Border.all(
-            color: selected ? const Color(0xFFFFD93D) : Colors.white24,
-            width: 2,
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _setMadhab(value),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 7),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFFFFD93D) : Colors.transparent,
+            border: Border.all(
+              color: selected ? const Color(0xFFFFD93D) : Colors.white24,
+              width: 2,
+            ),
+            boxShadow: selected
+                ? const [BoxShadow(color: Color(0xFFFFD93D), offset: Offset(2, 2), blurRadius: 0)]
+                : [],
           ),
-          boxShadow: selected
-              ? const [BoxShadow(color: Color(0xFFFFD93D), offset: Offset(3, 3), blurRadius: 0)]
-              : [],
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? Colors.black : Colors.white54,
-            fontWeight: FontWeight.w900,
-            fontSize: 12,
-            letterSpacing: 0.5,
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: selected ? Colors.black : Colors.white54,
+              fontWeight: FontWeight.w900,
+              fontSize: 10,
+              letterSpacing: 0.3,
+            ),
           ),
         ),
       ),
