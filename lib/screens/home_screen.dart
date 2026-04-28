@@ -216,13 +216,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: const Color(0xFFFFD93D),
                 border: Border.all(color: Colors.white, width: 2),
                 boxShadow: const [BoxShadow(color: Colors.white, offset: Offset(3, 3), blurRadius: 0)],
               ),
-              child: const Text('☪', style: TextStyle(fontSize: 16)),
+              child: const Text('☪', style: TextStyle(fontSize: 20)),
             ),
             const SizedBox(width: 12),
             const Column(
