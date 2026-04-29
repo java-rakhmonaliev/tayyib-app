@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/cupertino.dart';
 import '../services/auth_service.dart';
-import '../widgets/brutal_button.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
 
@@ -30,10 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text.trim(),
       );
       if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
       }
     } catch (e) {
       _showError(e.toString().replaceAll('Exception: ', ''));
@@ -43,13 +39,12 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
-        backgroundColor: const Color(0xFFFF6B6B),
-        behavior: SnackBarBehavior.floating,
-        shape: const RoundedRectangleBorder(),
-        margin: const EdgeInsets.all(16),
+    showCupertinoDialog(
+      context: context,
+      builder: (_) => CupertinoAlertDialog(
+        title: const Text('Error'),
+        content: Text(message),
+        actions: [CupertinoDialogAction(child: const Text('OK'), onPressed: () => Navigator.pop(context))],
       ),
     );
   }
@@ -57,81 +52,98 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFDF5),
+      backgroundColor: const Color(0xFFF2F2F7),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 40),
-
-              // Logo
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  border: Border.all(color: Colors.black, width: 3),
-                  boxShadow: const [BoxShadow(color: Color(0xFFFFD93D), offset: Offset(6, 6), blurRadius: 0)],
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('☪', style: TextStyle(fontSize: 20, color: Color(0xFFFFD93D))),
-                    SizedBox(width: 8),
-                    Text('TAYYIB', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 20, letterSpacing: 3)),
-                  ],
+              const SizedBox(height: 60),
+              Center(
+                child: Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF34C759),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [BoxShadow(color: const Color(0xFF34C759).withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 6))],
+                  ),
+                  child: const Center(child: Text('☪', style: TextStyle(fontSize: 28))),
                 ),
               ),
-
-              const SizedBox(height: 40),
-
-              // Title
-              const Text('WELCOME\nBACK', style: TextStyle(fontSize: 42, fontWeight: FontWeight.w900, letterSpacing: -1, height: 1.1)),
+              const SizedBox(height: 32),
+              const Text('Welcome back', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -0.5)),
               const SizedBox(height: 8),
-              const Text('Sign in to your account', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey)),
-
+              const Text('Sign in to your Tayyib account', style: TextStyle(fontSize: 16, color: Color(0xFF8E8E93))),
               const SizedBox(height: 40),
 
               // Form
               Container(
-                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  border: Border.all(color: Colors.black, width: 3),
-                  boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(6, 6), blurRadius: 0)],
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _label('USERNAME'),
-                    const SizedBox(height: 8),
-                    _textField(controller: _usernameController, hint: 'your username'),
-                    const SizedBox(height: 16),
-                    _label('PASSWORD'),
-                    const SizedBox(height: 8),
-                    _passwordField(),
+                    _appleTextField(
+                      controller: _usernameController,
+                      hint: 'Username',
+                      icon: CupertinoIcons.person,
+                      isLast: false,
+                    ),
+                    const Divider(height: 1, indent: 52),
+                    _appleTextField(
+                      controller: _passwordController,
+                      hint: 'Password',
+                      icon: CupertinoIcons.lock,
+                      obscure: _obscurePassword,
+                      isLast: true,
+                      suffix: GestureDetector(
+                        onTap: () => setState(() => _obscurePassword = !_obscurePassword),
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 16),
+                          child: Icon(
+                            _obscurePassword ? CupertinoIcons.eye : CupertinoIcons.eye_slash,
+                            color: const Color(0xFF8E8E93),
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
-              _isLoading
-                  ? const Center(child: CircularProgressIndicator(color: Colors.black, strokeWidth: 3))
-                  : BrutalButton(label: 'SIGN IN →', bg: Colors.black, fg: Colors.white, onTap: _login),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: CupertinoButton(
+                  color: const Color(0xFF007AFF),
+                  borderRadius: BorderRadius.circular(12),
+                  onPressed: _isLoading ? null : _login,
+                  child: _isLoading
+                      ? const CupertinoActivityIndicator(color: Colors.white)
+                      : const Text('Sign In', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.white)),
+                ),
+              ),
 
               const SizedBox(height: 16),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text("Don't have an account? ", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                  GestureDetector(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())),
-                    child: const Text('REGISTER', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, decoration: TextDecoration.underline)),
+              Center(
+                child: GestureDetector(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())),
+                  child: RichText(
+                    text: const TextSpan(
+                      text: "Don't have an account? ",
+                      style: TextStyle(color: Color(0xFF8E8E93), fontSize: 15),
+                      children: [
+                        TextSpan(text: 'Create one', style: TextStyle(color: Color(0xFF007AFF), fontWeight: FontWeight.w600)),
+                      ],
+                    ),
                   ),
-                ],
+                ),
               ),
             ],
           ),
@@ -140,49 +152,27 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _label(String text) {
-    return Text(text, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 2));
-  }
-
-  Widget _textField({required TextEditingController controller, required String hint}) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.black, width: 2),
-      ),
-      child: TextField(
-        controller: controller,
-        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w500),
-          filled: true,
-          fillColor: const Color(0xFFFFFDF5),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.all(14),
-        ),
-      ),
-    );
-  }
-
-  Widget _passwordField() {
-    return Container(
-      decoration: BoxDecoration(border: Border.all(color: Colors.black, width: 2)),
-      child: TextField(
-        controller: _passwordController,
-        obscureText: _obscurePassword,
-        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-        decoration: InputDecoration(
-          hintText: 'min 8 characters',
-          hintStyle: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w500),
-          filled: true,
-          fillColor: const Color(0xFFFFFDF5),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.all(14),
-          suffixIcon: GestureDetector(
-            onTap: () => setState(() => _obscurePassword = !_obscurePassword),
-            child: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
-          ),
-        ),
+  Widget _appleTextField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    bool obscure = false,
+    bool isLast = false,
+    Widget? suffix,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: obscure,
+      style: const TextStyle(fontSize: 16),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: Color(0xFFBDBDBD)),
+        prefixIcon: Icon(icon, color: const Color(0xFF8E8E93), size: 20),
+        suffixIcon: suffix,
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(isLast ? 12 : 0), borderSide: BorderSide.none),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
     );
   }

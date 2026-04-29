@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -6,10 +7,9 @@ import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/preferences_service.dart';
 import '../models/analysis_result.dart';
-import '../widgets/brutal_button.dart';
-import 'login_screen.dart';
 import 'result_screen.dart';
 import 'scanner_screen.dart';
+import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,6 +25,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   final TextEditingController _barcodeController = TextEditingController();
   String _madhab = 'hanafi';
   bool _isLoading = false;
+
+  final _madhabs = ['hanafi', 'maliki', 'shafii', 'hanbali'];
+  final _madhabLabels = ['Hanafi', 'Maliki', "Shafi'i", 'Hanbali'];
 
   @override
   void initState() {
@@ -58,7 +61,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       );
       _navigateToResult(result);
     } catch (e) {
-      _showError(e.toString());
+      _showError(e.toString().replaceAll('Exception: ', ''));
     } finally {
       setState(() => _isLoading = false);
     }
@@ -77,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       );
       _navigateToResult(result);
     } catch (e) {
-      _showError(e.toString());
+      _showError(e.toString().replaceAll('Exception: ', ''));
     } finally {
       setState(() => _isLoading = false);
     }
@@ -89,13 +92,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     if (picked == null) return;
     setState(() => _isLoading = true);
     try {
-      final result = await ApiService.analyzeImage(
-        image: File(picked.path),
-        madhab: _madhab,
-      );
+      final result = await ApiService.analyzeImage(image: File(picked.path), madhab: _madhab);
       _navigateToResult(result);
     } catch (e) {
-      _showError(e.toString());
+      _showError(e.toString().replaceAll('Exception: ', ''));
     } finally {
       setState(() => _isLoading = false);
     }
@@ -104,102 +104,45 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   void _navigateToResult(AnalysisResult result) {
     Navigator.push(
       context,
-      PageRouteBuilder(
-        pageBuilder: (_, animation, __) => ResultScreen(result: result),
-        transitionsBuilder: (_, animation, __, child) {
-          return SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, 1),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 350),
-      ),
+      CupertinoPageRoute(builder: (_) => ResultScreen(result: result)),
     );
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
-        backgroundColor: const Color(0xFFFF6B6B),
-        behavior: SnackBarBehavior.floating,
-        shape: const RoundedRectangleBorder(),
-        margin: const EdgeInsets.all(16),
+    showCupertinoDialog(
+      context: context,
+      builder: (_) => CupertinoAlertDialog(
+        title: const Text('Error'),
+        content: Text(message),
+        actions: [CupertinoDialogAction(child: const Text('OK'), onPressed: () => Navigator.pop(context))],
       ),
     );
   }
 
-  Future<void> _showProfileSheet() async {
+  void _showProfileSheet() async {
     final user = await AuthService.getSavedUser();
     if (!mounted) return;
-    showModalBottomSheet(
+    showCupertinoModalPopup(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Color(0xFFFFFDF5),
-          border: Border(top: BorderSide(color: Colors.black, width: 3)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  color: Colors.black,
-                  child: const Center(child: Icon(Icons.person, color: Colors.white, size: 24)),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(user?.username ?? '', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
-                    Text(user?.email ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Colors.grey)),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFD93D),
-                border: Border.all(color: Colors.black, width: 2),
-                boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3), blurRadius: 0)],
-              ),
-              child: Row(
-                children: [
-                  const Text('MADHAB:', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1)),
-                  const SizedBox(width: 8),
-                  Text(user?.madhab.toUpperCase() ?? '', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            BrutalButton(
-              label: 'LOGOUT',
-              bg: const Color(0xFFFF6B6B),
-              fg: Colors.white,
-              onTap: () async {
-                await AuthService.logout();
-                if (mounted) {
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                    (_) => false,
-                  );
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-          ],
+      builder: (_) => CupertinoActionSheet(
+        title: Text(user?.username ?? ''),
+        message: Text(user?.email ?? ''),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () async {
+              Navigator.pop(context);
+              await AuthService.logout();
+              if (mounted) {
+                Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
+              }
+            },
+            isDestructiveAction: true,
+            child: const Text('Sign Out'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
         ),
       ),
     );
@@ -208,68 +151,42 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFDF5),
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0,
-        titleSpacing: 16,
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFD93D),
-                border: Border.all(color: Colors.white, width: 2),
-                boxShadow: const [BoxShadow(color: Colors.white, offset: Offset(3, 3), blurRadius: 0)],
-              ),
-              child: const Text('☪', style: TextStyle(fontSize: 20)),
-            ),
-            const SizedBox(width: 12),
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('TAYYIB', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18, letterSpacing: 3)),
-                Text('HALAL CHECKER', style: TextStyle(color: Color(0xFFFFD93D), fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 2)),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          GestureDetector(
-            onTap: _showProfileSheet,
-            child: Container(
-              margin: const EdgeInsets.only(right: 16),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.white24, width: 1.5),
-              ),
-              child: const Icon(Icons.person, color: Colors.white, size: 18),
-            ),
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: Container(
-            color: Colors.black,
-            child: TabBar(
-              controller: _tabController,
-              indicatorColor: const Color(0xFFFFD93D),
-              indicatorWeight: 3,
-              labelColor: const Color(0xFFFFD93D),
-              unselectedLabelColor: Colors.white38,
-              labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1.5),
-              tabs: const [
-                Tab(icon: Icon(Icons.text_fields, size: 18), text: 'TEXT'),
-                Tab(icon: Icon(Icons.qr_code_scanner, size: 18), text: 'BARCODE'),
-                Tab(icon: Icon(Icons.camera_alt, size: 18), text: 'IMAGE'),
-              ],
-            ),
-          ),
-        ),
-      ),
-      body: _isLoading ? _buildLoading() : Column(
+      backgroundColor: const Color(0xFFF2F2F7),
+      body: _isLoading ? _buildLoading() : _buildContent(),
+    );
+  }
+
+  Widget _buildLoading() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _buildMadhabToggle(),
+          CupertinoActivityIndicator(radius: 16),
+          SizedBox(height: 16),
+          Text('Analyzing...', style: TextStyle(fontSize: 15, color: Color(0xFF8E8E93))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    return NestedScrollView(
+      headerSliverBuilder: (context, innerBoxIsScrolled) => [
+        CupertinoSliverNavigationBar(
+          largeTitle: const Text('Tayyib'),
+          trailing: CupertinoButton(
+            padding: EdgeInsets.zero,
+            onPressed: _showProfileSheet,
+            child: const Icon(CupertinoIcons.person_circle, size: 28, color: Color(0xFF007AFF)),
+          ),
+          backgroundColor: const Color(0xFFF2F2F7),
+          border: null,
+        ),
+      ],
+      body: Column(
+        children: [
+          _buildMadhabPicker(),
+          _buildTabBar(),
           Expanded(
             child: TabBarView(
               controller: _tabController,
@@ -285,90 +202,41 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildLoading() {
+  Widget _buildMadhabPicker() {
     return Container(
-      color: const Color(0xFFFFFDF5),
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.all(32),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: Colors.black, width: 3),
-            boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(6, 6), blurRadius: 0)],
-          ),
-          child: const Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: 32,
-                height: 32,
-                child: CircularProgressIndicator(color: Colors.black, strokeWidth: 3),
-              ),
-              SizedBox(height: 16),
-              Text('ANALYZING...', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 2)),
-              SizedBox(height: 4),
-              Text('Checking Islamic dietary rules', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
-            ],
-          ),
-        ),
+      height: 36,
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: CupertinoSlidingSegmentedControl<String>(
+        groupValue: _madhab,
+        onValueChanged: (v) { if (v != null) _setMadhab(v); },
+        children: {
+          for (int i = 0; i < _madhabs.length; i++)
+            _madhabs[i]: Text(_madhabLabels[i], style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+        },
       ),
     );
   }
 
-  Widget _buildMadhabToggle() {
-    return Container(
-      color: Colors.black,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('SCHOOL OF THOUGHT', style: TextStyle(color: Colors.white54, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 2)),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              _madhabBtn('hanafi', 'Hanafi'),
-              const SizedBox(width: 6),
-              _madhabBtn('maliki', 'Maliki'),
-              const SizedBox(width: 6),
-              _madhabBtn('shafii', "Shafi'i"),
-              const SizedBox(width: 6),
-              _madhabBtn('hanbali', 'Hanbali'),
-            ],
-          ),
+  Widget _buildTabBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: TabBar(
+        controller: _tabController,
+        dividerColor: Colors.transparent,
+        indicator: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 2))],
+        ),
+        indicatorSize: TabBarIndicatorSize.tab,
+        labelColor: const Color(0xFF007AFF),
+        unselectedLabelColor: const Color(0xFF8E8E93),
+        labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        tabs: const [
+          Tab(text: 'Text'),
+          Tab(text: 'Barcode'),
+          Tab(text: 'Image'),
         ],
-      ),
-    );
-  }
-
-  Widget _madhabBtn(String value, String label) {
-    final selected = _madhab == value;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => _setMadhab(value),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(vertical: 7),
-          decoration: BoxDecoration(
-            color: selected ? const Color(0xFFFFD93D) : Colors.transparent,
-            border: Border.all(
-              color: selected ? const Color(0xFFFFD93D) : Colors.white24,
-              width: 2,
-            ),
-            boxShadow: selected
-                ? const [BoxShadow(color: Color(0xFFFFD93D), offset: Offset(2, 2), blurRadius: 0)]
-                : [],
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: selected ? Colors.black : Colors.white54,
-              fontWeight: FontWeight.w900,
-              fontSize: 10,
-              letterSpacing: 0.3,
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -380,15 +248,34 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 8),
-          _label('INGREDIENT LIST'),
-          const SizedBox(height: 8),
-          _brutalTextField(controller: _ingredientsController, hint: 'e.g. Water, Sugar, E471, Gelatin...', maxLines: 5),
-          const SizedBox(height: 16),
-          _label('PRODUCT NAME (OPTIONAL)'),
-          const SizedBox(height: 8),
-          _brutalTextField(controller: _productNameController, hint: 'e.g. Oreo Cookies'),
-          const SizedBox(height: 24),
-          BrutalButton(label: 'ANALYZE →', bg: Colors.black, fg: Colors.white, onTap: _analyzeText),
+          _sectionHeader('INGREDIENTS'),
+          _appleCard(
+            child: Column(
+              children: [
+                CupertinoTextField(
+                  controller: _ingredientsController,
+                  placeholder: 'Paste ingredient list here...',
+                  maxLines: 5,
+                  minLines: 4,
+                  padding: const EdgeInsets.all(14),
+                  decoration: const BoxDecoration(),
+                  style: const TextStyle(fontSize: 16),
+                  placeholderStyle: const TextStyle(color: Color(0xFFBDBDBD), fontSize: 16),
+                ),
+                const Divider(height: 1),
+                CupertinoTextField(
+                  controller: _productNameController,
+                  placeholder: 'Product name (optional)',
+                  padding: const EdgeInsets.all(14),
+                  decoration: const BoxDecoration(),
+                  style: const TextStyle(fontSize: 16),
+                  placeholderStyle: const TextStyle(color: Color(0xFFBDBDBD), fontSize: 16),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          _primaryButton('Analyze Ingredients', const Color(0xFF007AFF), _analyzeText),
         ],
       ),
     );
@@ -401,27 +288,37 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 8),
-          _label('BARCODE NUMBER'),
-          const SizedBox(height: 8),
-          _brutalTextField(controller: _barcodeController, hint: 'e.g. 737628064502', keyboardType: TextInputType.number),
-          const SizedBox(height: 12),
-          BrutalButton(
-            label: '📷  SCAN BARCODE',
-            bg: const Color(0xFFFFD93D),
-            fg: Colors.black,
-            onTap: () async {
-              final barcode = await Navigator.push<String>(
-                context,
-                MaterialPageRoute(builder: (_) => const ScannerScreen()),
-              );
-              if (barcode != null) _barcodeController.text = barcode;
-            },
+          _sectionHeader('BARCODE'),
+          _appleCard(
+            child: CupertinoTextField(
+              controller: _barcodeController,
+              placeholder: 'e.g. 737628064502',
+              keyboardType: TextInputType.number,
+              padding: const EdgeInsets.all(14),
+              decoration: const BoxDecoration(),
+              style: const TextStyle(fontSize: 16),
+              placeholderStyle: const TextStyle(color: Color(0xFFBDBDBD), fontSize: 16),
+              prefix: const Padding(
+                padding: EdgeInsets.only(left: 14),
+                child: Icon(CupertinoIcons.barcode, color: Color(0xFF8E8E93), size: 20),
+              ),
+            ),
           ),
           const SizedBox(height: 12),
-          BrutalButton(label: 'FETCH & ANALYZE →', bg: Colors.black, fg: Colors.white, onTap: _analyzeBarcode),
-          const SizedBox(height: 16),
-          const Text('Powered by Open Food Facts — 3M+ products',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey, letterSpacing: 0.5)),
+          _primaryButton('Scan Barcode', const Color(0xFF8E8E93), () async {
+            final barcode = await Navigator.push<String>(
+              context,
+              CupertinoPageRoute(builder: (_) => const ScannerScreen()),
+            );
+            if (barcode != null) _barcodeController.text = barcode;
+          }),
+          const SizedBox(height: 10),
+          _primaryButton('Fetch & Analyze', const Color(0xFF007AFF), _analyzeBarcode),
+          const SizedBox(height: 12),
+          const Center(
+            child: Text('Powered by Open Food Facts — 3M+ products',
+                style: TextStyle(fontSize: 12, color: Color(0xFF8E8E93))),
+          ),
         ],
       ),
     );
@@ -431,81 +328,67 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFD93D),
-              border: Border.all(color: Colors.black, width: 3),
-              boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4), blurRadius: 0)],
+              color: const Color(0xFFFFF3CD),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFFFD60A).withOpacity(0.5)),
             ),
             child: const Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('⚠', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+                Icon(CupertinoIcons.exclamationmark_triangle, color: Color(0xFFFF9500), size: 20),
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'If the product has a Halal certification logo (MUI, JAKIM, IFANCA, HMC), trust that certification directly. This tool is for products without one.',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, height: 1.5),
+                    'If the product has a Halal certification logo (MUI, JAKIM, IFANCA), trust that directly.',
+                    style: TextStyle(fontSize: 13, color: Color(0xFF7A5C00), height: 1.4),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
-          BrutalButton(
-            label: '📁  CHOOSE FROM GALLERY',
-            bg: const Color(0xFFC4B5FD),
-            fg: Colors.black,
-            onTap: () => _pickAndAnalyzeImage(ImageSource.gallery),
-          ),
-          const SizedBox(height: 12),
-          BrutalButton(
-            label: '📷  TAKE PHOTO',
-            bg: Colors.black,
-            fg: Colors.white,
-            onTap: () => _pickAndAnalyzeImage(ImageSource.camera),
-          ),
           const SizedBox(height: 16),
-          const Text('Clear photo of ingredient list only — JPG/PNG up to 10MB',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey, letterSpacing: 0.5)),
+          _primaryButton('Choose from Gallery', const Color(0xFF007AFF),
+              () => _pickAndAnalyzeImage(ImageSource.gallery)),
+          const SizedBox(height: 10),
+          _primaryButton('Take Photo', const Color(0xFF34C759),
+              () => _pickAndAnalyzeImage(ImageSource.camera)),
+          const SizedBox(height: 12),
+          const Center(
+            child: Text('Clear photo of ingredient list only',
+                style: TextStyle(fontSize: 12, color: Color(0xFF8E8E93))),
+          ),
         ],
       ),
     );
   }
 
-  Widget _label(String text) {
-    return Text(text,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 2, color: Colors.black));
+  Widget _sectionHeader(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF8E8E93), letterSpacing: 0.5)),
+    );
   }
 
-  Widget _brutalTextField({
-    required TextEditingController controller,
-    required String hint,
-    int maxLines = 1,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
+  Widget _appleCard({required Widget child}) {
     return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.black, width: 3),
-        boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4), blurRadius: 0)],
-      ),
-      child: TextField(
-        controller: controller,
-        maxLines: maxLines,
-        keyboardType: keyboardType,
-        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Colors.black),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w500, fontSize: 14),
-          filled: true,
-          fillColor: Colors.white,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.all(14),
-        ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+      child: child,
+    );
+  }
+
+  Widget _primaryButton(String label, Color color, VoidCallback onTap) {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: CupertinoButton(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+        onPressed: onTap,
+        child: Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
       ),
     );
   }
