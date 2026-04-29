@@ -35,6 +35,7 @@ class AnalysisResult {
   final String overallStatus;
   final String madhab;
   final String productName;
+  final String barcode;
   final bool aiUsed;
   final List<IngredientResult> ingredients;
   final List<String> unknownIngredients;
@@ -47,6 +48,7 @@ class AnalysisResult {
     required this.overallStatus,
     required this.madhab,
     required this.productName,
+    required this.barcode,
     required this.aiUsed,
     required this.ingredients,
     required this.unknownIngredients,
@@ -61,6 +63,7 @@ class AnalysisResult {
       overallStatus: json['overall_status'] ?? '',
       madhab: json['madhab'] ?? '',
       productName: json['product_name'] ?? '',
+      barcode: json['product']?['barcode'] ?? '',
       aiUsed: json['ai_used'] ?? false,
       ingredients: (json['ingredients'] as List<dynamic>? ?? [])
           .map((e) => IngredientResult.fromJson(e))

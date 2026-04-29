@@ -4,7 +4,6 @@ import 'package:http/http.dart' as http;
 import '../models/analysis_result.dart';
 
 class ApiService {
-  // Change this to your EC2 IP or domain when deploying
   static const String baseUrl = 'http://13.217.178.63';
 
   static Future<AnalysisResult> analyzeText({
@@ -42,7 +41,11 @@ class ApiService {
     );
 
     if (response.statusCode == 200) {
-      return AnalysisResult.fromJson(jsonDecode(response.body));
+      final data = jsonDecode(response.body);
+      if (data['product'] != null) {
+        data['product']['barcode'] = barcode;
+      }
+      return AnalysisResult.fromJson(data);
     }
     throw Exception(jsonDecode(response.body)['error'] ?? 'Barcode lookup failed');
   }
