@@ -60,25 +60,52 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 60),
+              // Logo Section
               Center(
                 child: Container(
-                  width: 64,
-                  height: 64,
+                  width: 120,
+                  height: 120,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF34C759),
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: [BoxShadow(color: const Color(0xFF34C759).withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 6))],
                   ),
-                  child: const Center(child: Text('☪', style: TextStyle(fontSize: 28))),
+                  child: Center(
+                    child: Image.asset(
+                      'assets/1.png',
+                      width: 100,
+                      height: 100,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 32),
-              const Text('Welcome back', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: -0.5)),
+              // Title Section
+              const Center(
+                child: Text(
+                  'Welcome back',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.black, // Forced black for visibility
+                    fontSize: 32, 
+                    fontWeight: FontWeight.w700, 
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ),
               const SizedBox(height: 8),
-              const Text('Sign in to your Tayyib account', style: TextStyle(fontSize: 16, color: Color(0xFF8E8E93))),
+              const Center(
+                child: Text(
+                  'Sign in to your Tayyib account',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16, 
+                    color: Color(0xFF8E8E93),
+                  ),
+                ),
+              ),
               const SizedBox(height: 40),
 
-              // Form
+              // Login Form
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -87,7 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   children: [
                     _appleTextField(
-                      controller: _usernameController,
+                      controller: _usernameController,  
                       hint: 'Username',
                       icon: CupertinoIcons.person,
                       isLast: false,
@@ -117,10 +144,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 20),
 
+              // Sign In Button
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: CupertinoButton(
+                  padding: EdgeInsets.zero,
                   color: const Color(0xFF007AFF),
                   borderRadius: BorderRadius.circular(12),
                   onPressed: _isLoading ? null : _login,
@@ -131,6 +160,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
 
               const SizedBox(height: 16),
+              // Register Link
               Center(
                 child: GestureDetector(
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())),
@@ -152,6 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // Updated TextField helper to fix invisible text
   Widget _appleTextField({
     required TextEditingController controller,
     required String hint,
@@ -163,7 +194,8 @@ class _LoginScreenState extends State<LoginScreen> {
     return TextField(
       controller: controller,
       obscureText: obscure,
-      style: const TextStyle(fontSize: 16),
+      // FIX: Force typing color to black so it's visible on white background
+      style: const TextStyle(fontSize: 16, color: Colors.black), 
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: const TextStyle(color: Color(0xFFBDBDBD)),
@@ -171,7 +203,10 @@ class _LoginScreenState extends State<LoginScreen> {
         suffixIcon: suffix,
         filled: true,
         fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(isLast ? 12 : 0), borderSide: BorderSide.none),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(isLast ? 12 : 0), 
+          borderSide: BorderSide.none
+        ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
     );

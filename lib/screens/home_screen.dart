@@ -202,20 +202,27 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildMadhabPicker() {
-    return Container(
-      height: 36,
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: CupertinoSlidingSegmentedControl<String>(
-        groupValue: _madhab,
-        onValueChanged: (v) { if (v != null) _setMadhab(v); },
-        children: {
-          for (int i = 0; i < _madhabs.length; i++)
-            _madhabs[i]: Text(_madhabLabels[i], style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-        },
+Widget _buildMadhabPicker() {
+  return Padding(
+    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+    child: SegmentedButton<String>(
+      segments: const [
+        ButtonSegment(value: 'hanafi', label: Text('Hanafi')),
+        ButtonSegment(value: 'maliki', label: Text('Maliki')),
+        ButtonSegment(value: 'shafii', label: Text("Shafi'i")),
+        ButtonSegment(value: 'hanbali', label: Text('Hanbali')),
+      ],
+      selected: {_madhab},
+      onSelectionChanged: (v) => _setMadhab(v.first),
+      style: ButtonStyle(
+        padding: WidgetStateProperty.all(EdgeInsets.zero), 
+        textStyle: WidgetStateProperty.all(
+          const TextStyle(fontSize: 10, fontWeight: FontWeight.w500), // Slightly smaller font
+        ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildTabBar() {
     return Padding(
@@ -380,18 +387,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _primaryButton(String label, Color color, VoidCallback onTap) {
-    return SizedBox(
-      width: double.infinity,
-      height: 50,
-      child: CupertinoButton(
-        color: color,
-        borderRadius: BorderRadius.circular(12),
-        onPressed: onTap,
-        child: Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+Widget _primaryButton(String label, Color color, VoidCallback onTap) {
+  return SizedBox(
+    width: double.infinity,
+    height: 50,
+    child: FilledButton(
+      onPressed: onTap,
+      style: FilledButton.styleFrom(
+        backgroundColor: color,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-    );
-  }
+      child: Text(label,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+    ),
+  );
+}
 
   @override
   void dispose() {
