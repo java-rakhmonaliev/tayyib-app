@@ -1,140 +1,130 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../core/theme.dart';
 import '../services/auth_service.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
-
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _usernameController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _isLoading = false;
-  bool _obscurePassword = true;
+  final _usernameCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
+  bool _loading = false;
+  bool _obscure = true;
 
   Future<void> _login() async {
-    if (_usernameController.text.trim().isEmpty || _passwordController.text.trim().isEmpty) {
-      _showError('Please fill in all fields.');
+    if (_usernameCtrl.text.trim().isEmpty ||
+        _passwordCtrl.text.trim().isEmpty) {
+      _err('Please fill in all fields.');
       return;
     }
-    setState(() => _isLoading = true);
+    setState(() => _loading = true);
     try {
       await AuthService.login(
-        username: _usernameController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
-      if (mounted) {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
-      }
+          username: _usernameCtrl.text.trim(),
+          password: _passwordCtrl.text.trim());
+      if (mounted)
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (_) => const HomeScreen()));
     } catch (e) {
-      _showError(e.toString().replaceAll('Exception: ', ''));
+      _err(e.toString().replaceAll('Exception: ', ''));
     } finally {
-      setState(() => _isLoading = false);
+      setState(() => _loading = false);
     }
   }
 
-  void _showError(String message) {
-    showCupertinoDialog(
-      context: context,
-      builder: (_) => CupertinoAlertDialog(
-        title: const Text('Error'),
-        content: Text(message),
-        actions: [CupertinoDialogAction(child: const Text('OK'), onPressed: () => Navigator.pop(context))],
-      ),
-    );
+  void _err(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: TayyibText.callout(color: Colors.white)),
+      backgroundColor: TayyibColors.red,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.all(16),
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final labelColor = TayyibColors.lbl(context);
+    final cardColor = TayyibColors.cardBg(context);
+    final secColor = TayyibColors.secondLbl(context);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
+      backgroundColor: TayyibColors.bg(context),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 60),
-              // Logo Section
-              Center(
-                child: Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Center(
-                    child: Image.asset(
-                      'assets/1.png',
-                      width: 100,
-                      height: 100,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
+              const SizedBox(height: 56),
+
+              // Logo
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4))
+                  ],
                 ),
+                child: Center(
+                    child: Image.asset(isDark ? 'assets/2.png' : 'assets/1.png',
+                        width: 32, height: 32, fit: BoxFit.contain)),
               ),
+
               const SizedBox(height: 32),
-              // Title Section
-              const Center(
-                child: Text(
-                  'Welcome back',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.black, // Forced black for visibility
-                    fontSize: 32, 
-                    fontWeight: FontWeight.w700, 
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ),
+              Text('Sign in', style: TayyibText.largeTitle(color: labelColor)),
               const SizedBox(height: 8),
-              const Center(
-                child: Text(
-                  'Sign in to your Tayyib account',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16, 
-                    color: Color(0xFF8E8E93),
-                  ),
-                ),
-              ),
+              Text('Welcome back to Tayyib',
+                  style: TayyibText.body(color: secColor)),
               const SizedBox(height: 40),
 
-              // Login Form
+              // Fields
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Column(
                   children: [
-                    _appleTextField(
-                      controller: _usernameController,  
-                      hint: 'Username',
-                      icon: CupertinoIcons.person,
-                      isLast: false,
-                    ),
-                    const Divider(height: 1, indent: 52),
-                    _appleTextField(
-                      controller: _passwordController,
+                    _field(
+                        controller: _usernameCtrl,
+                        hint: 'Username',
+                        icon: Icons.person_outline_rounded,
+                        isTop: true),
+                    Divider(
+                        height: 1,
+                        color: TayyibColors.sep(context),
+                        indent: 56),
+                    _field(
+                      controller: _passwordCtrl,
                       hint: 'Password',
-                      icon: CupertinoIcons.lock,
-                      obscure: _obscurePassword,
-                      isLast: true,
+                      icon: Icons.lock_outline_rounded,
+                      obscure: _obscure,
+                      isBottom: true,
                       suffix: GestureDetector(
-                        onTap: () => setState(() => _obscurePassword = !_obscurePassword),
+                        onTap: () => setState(() => _obscure = !_obscure),
                         child: Padding(
                           padding: const EdgeInsets.only(right: 16),
                           child: Icon(
-                            _obscurePassword ? CupertinoIcons.eye : CupertinoIcons.eye_slash,
-                            color: const Color(0xFF8E8E93),
-                            size: 20,
-                          ),
+                              _obscure
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: secColor,
+                              size: 20),
                         ),
                       ),
                     ),
@@ -142,34 +132,48 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
-              // Sign In Button
+              // Button
               SizedBox(
                 width: double.infinity,
-                height: 50,
-                child: CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  color: const Color(0xFF007AFF),
-                  borderRadius: BorderRadius.circular(12),
-                  onPressed: _isLoading ? null : _login,
-                  child: _isLoading
-                      ? const CupertinoActivityIndicator(color: Colors.white)
-                      : const Text('Sign In', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.white)),
+                height: 54,
+                child: FilledButton(
+                  onPressed: _loading ? null : _login,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: labelColor,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(50)),
+                  ),
+                  child: _loading
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: TayyibColors.bg(context)))
+                      : Text('Sign in',
+                          style: TayyibText.buttonLarge(
+                              color: TayyibColors.bg(context))),
                 ),
               ),
 
-              const SizedBox(height: 16),
-              // Register Link
+              const SizedBox(height: 20),
               Center(
                 child: GestureDetector(
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const RegisterScreen())),
                   child: RichText(
-                    text: const TextSpan(
+                    text: TextSpan(
                       text: "Don't have an account? ",
-                      style: TextStyle(color: Color(0xFF8E8E93), fontSize: 15),
+                      style: TayyibText.callout(color: secColor),
                       children: [
-                        TextSpan(text: 'Create one', style: TextStyle(color: Color(0xFF007AFF), fontWeight: FontWeight.w600)),
+                        TextSpan(
+                            text: 'Create one',
+                            style: TayyibText.callout(
+                                color: TayyibColors.blue,
+                                weight: FontWeight.w700)),
                       ],
                     ),
                   ),
@@ -182,40 +186,44 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Updated TextField helper to fix invisible text
-  Widget _appleTextField({
+  Widget _field({
     required TextEditingController controller,
     required String hint,
     required IconData icon,
     bool obscure = false,
-    bool isLast = false,
+    bool isTop = false,
+    bool isBottom = false,
     Widget? suffix,
   }) {
     return TextField(
       controller: controller,
       obscureText: obscure,
-      // FIX: Force typing color to black so it's visible on white background
-      style: const TextStyle(fontSize: 16, color: Colors.black), 
+      style: TayyibText.body(color: TayyibColors.lbl(context)),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Color(0xFFBDBDBD)),
-        prefixIcon: Icon(icon, color: const Color(0xFF8E8E93), size: 20),
+        hintStyle: TayyibText.body(color: TayyibColors.tertiaryLabel),
+        prefixIcon:
+            Icon(icon, color: TayyibColors.secondLbl(context), size: 20),
         suffixIcon: suffix,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: TayyibColors.cardBg(context),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(isLast ? 12 : 0), 
-          borderSide: BorderSide.none
+          borderRadius: BorderRadius.vertical(
+            top: isTop ? const Radius.circular(16) : Radius.zero,
+            bottom: isBottom ? const Radius.circular(16) : Radius.zero,
+          ),
+          borderSide: BorderSide.none,
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
     );
   }
 
   @override
   void dispose() {
-    _usernameController.dispose();
-    _passwordController.dispose();
+    _usernameCtrl.dispose();
+    _passwordCtrl.dispose();
     super.dispose();
   }
 }

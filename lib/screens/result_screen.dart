@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import '../core/theme.dart';
 import '../models/analysis_result.dart';
 import '../services/community_service.dart';
 import '../services/auth_service.dart';
@@ -40,7 +40,7 @@ class _ResultScreenState extends State<ResultScreen> {
 
   Future<void> _checkLogin() async {
     final loggedIn = await AuthService.isLoggedIn();
-    setState(() => _isLoggedIn = loggedIn);
+    if (mounted) setState(() => _isLoggedIn = loggedIn);
   }
 
   Future<void> _loadCommunityData() async {
@@ -48,9 +48,13 @@ class _ResultScreenState extends State<ResultScreen> {
     try {
       final score = await CommunityService.getScore(widget.result.barcode);
       final myVote = await CommunityService.getMyVote(widget.result.barcode);
-      setState(() { _communityScore = score; _myVote = myVote; });
+      if (mounted)
+        setState(() {
+          _communityScore = score;
+          _myVote = myVote;
+        });
     } catch (_) {}
-    setState(() => _loadingScore = false);
+    if (mounted) setState(() => _loadingScore = false);
   }
 
   Future<void> _submitVote(String vote) async {
@@ -62,79 +66,136 @@ class _ResultScreenState extends State<ResultScreen> {
         madhab: widget.result.madhab,
         productName: widget.result.productName,
       );
-      setState(() => _myVote = vote);
+      if (mounted) setState(() => _myVote = vote);
       await _loadCommunityData();
       if (mounted) {
-        showCupertinoDialog(
-          context: context,
-          builder: (_) => CupertinoAlertDialog(
-            title: const Text('JazakAllahu Khayran'),
-            content: const Text('Your vote helps the community find halal food.'),
-            actions: [CupertinoDialogAction(child: const Text('OK'), onPressed: () => Navigator.pop(context))],
-          ),
+        _showDialog(
+          title: 'JazakAllahu Khayran',
+          message: 'Your vote helps the community find halal food.',
         );
       }
     } catch (e) {
       if (mounted) {
-        showCupertinoDialog(
-          context: context,
-          builder: (_) => CupertinoAlertDialog(
-            title: const Text('Error'),
-            content: Text(e.toString()),
-            actions: [CupertinoDialogAction(child: const Text('OK'), onPressed: () => Navigator.pop(context))],
-          ),
-        );
+        _showDialog(title: 'Error', message: e.toString());
       }
     }
-    setState(() => _submittingVote = false);
+    if (mounted) setState(() => _submittingVote = false);
+  }
+
+  void _showDialog({required String title, required String message}) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: TayyibColors.cardBg(context),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(title,
+            style: TayyibText.headline(color: TayyibColors.lbl(context))),
+        content: Text(message,
+            style: TayyibText.callout(color: TayyibColors.secondLbl(context))),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('OK',
+                style: TayyibText.callout(
+                    color: TayyibColors.lbl(context), weight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
   }
 
   Color get _statusColor {
     switch (widget.result.overallStatus) {
-      case 'halal': return const Color(0xFF34C759);
-      case 'haram': return const Color(0xFFFF3B30);
-      default: return const Color(0xFFFF9500);
+      case 'halal':
+        return TayyibColors.green;
+      case 'haram':
+        return TayyibColors.red;
+      default:
+        return TayyibColors.orange;
+    }
+  }
+
+  Color get _statusTintColor {
+    switch (widget.result.overallStatus) {
+      case 'halal':
+        return TayyibColors.greenTint;
+      case 'haram':
+        return TayyibColors.redTint;
+      default:
+        return TayyibColors.orangeTint;
     }
   }
 
   String get _statusEmoji {
     switch (widget.result.overallStatus) {
-      case 'halal': return '✅';
-      case 'haram': return '❌';
-      default: return '⚠️';
+      case 'halal':
+        return '✅';
+      case 'haram':
+        return '❌';
+      default:
+        return '⚠️';
     }
   }
 
   String get _statusLabel {
     switch (widget.result.overallStatus) {
-      case 'halal': return 'Halal';
-      case 'haram': return 'Haram';
-      default: return 'Questionable';
+      case 'halal':
+        return 'Halal';
+      case 'haram':
+        return 'Haram';
+      default:
+        return 'Questionable';
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
+      backgroundColor: TayyibColors.bg(context),
       appBar: AppBar(
-        title: const Text('Result', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: () => Navigator.pop(context),
-          child: const Icon(CupertinoIcons.back, color: Color(0xFF007AFF)),
+        backgroundColor: TayyibColors.bg(context),
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            margin: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: TayyibColors.fillC(context),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.arrow_back_rounded,
+              color: TayyibColors.lbl(context),
+              size: 20,
+            ),
+          ),
+        ),
+        title: Text(
+          'Result',
+          style: TayyibText.headline(color: TayyibColors.lbl(context)),
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 40),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildVerdictCard(),
+            _buildVerdictCard(isDark),
             const SizedBox(height: 16),
-            if (widget.result.hasHalalLogo) ...[_buildHalalLogoBanner(), const SizedBox(height: 16)],
-            if (widget.result.product != null) ...[_buildProductCard(), const SizedBox(height: 16)],
-            if (widget.result.barcode.isNotEmpty) ...[_buildCommunityScore(), const SizedBox(height: 16)],
+            if (widget.result.hasHalalLogo) ...[
+              _buildHalalLogoBanner(),
+              const SizedBox(height: 16),
+            ],
+            if (widget.result.product != null) ...[
+              _buildProductCard(),
+              const SizedBox(height: 16),
+            ],
+            if (widget.result.barcode.isNotEmpty) ...[
+              _buildCommunityScore(),
+              const SizedBox(height: 16),
+            ],
             _buildIngredientSection(),
             if (widget.result.unknownIngredients.isNotEmpty) ...[
               const SizedBox(height: 16),
@@ -144,60 +205,85 @@ class _ResultScreenState extends State<ResultScreen> {
               const SizedBox(height: 16),
               _buildVotingSection(),
             ],
-            const SizedBox(height: 40),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildVerdictCard() {
+  // ─── Verdict Card ───────────────────────────────────────────────────────────
+
+  Widget _buildVerdictCard(bool isDark) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: _statusColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: _statusColor.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 8))],
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: _statusColor.withOpacity(isDark ? 0.2 : 0.35),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(_statusEmoji, style: const TextStyle(fontSize: 44)),
-          const SizedBox(height: 8),
-          Text(_statusLabel,
-              style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -1, height: 1)),
-          const SizedBox(height: 8),
-          if (widget.result.productName.isNotEmpty)
-            Text(widget.result.productName, style: const TextStyle(color: Colors.white70, fontSize: 15, fontWeight: FontWeight.w500)),
+          Text(_statusEmoji, style: const TextStyle(fontSize: 40)),
+          const SizedBox(height: 10),
           Text(
-            '${widget.result.madhab.toUpperCase()} MADHAB${widget.result.aiUsed ? ' · AI' : ''}',
-            style: const TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 1),
+            _statusLabel,
+            style: TayyibText.largeTitle(color: Colors.white),
+          ),
+          const SizedBox(height: 6),
+          if (widget.result.productName.isNotEmpty)
+            Text(
+              widget.result.productName,
+              style: TayyibText.callout(color: Colors.white70),
+            ),
+          const SizedBox(height: 4),
+          Text(
+            '${widget.result.madhab.toUpperCase()} MADHAB'
+            '${widget.result.aiUsed ? '  ·  AI' : ''}',
+            style: TayyibText.caption1(color: Colors.white54),
           ),
         ],
       ),
     );
   }
+
+  // ─── Halal Logo Banner ───────────────────────────────────────────────────────
 
   Widget _buildHalalLogoBanner() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8F8ED),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF34C759).withOpacity(0.3)),
-      ),
+    return _card(
       child: Row(
         children: [
-          const Icon(CupertinoIcons.checkmark_seal_fill, color: Color(0xFF34C759), size: 22),
-          const SizedBox(width: 10),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: TayyibColors.greenTint,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.verified_rounded,
+                color: TayyibColors.green, size: 22),
+          ),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Halal Certified', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Color(0xFF1A7A3F))),
+                Text(
+                  'Halal Certified',
+                  style: TayyibText.headline(color: TayyibColors.lbl(context)),
+                ),
                 if (widget.result.halalLogoName != null)
-                  Text(widget.result.halalLogoName!, style: const TextStyle(fontSize: 13, color: Color(0xFF34C759))),
+                  Text(
+                    widget.result.halalLogoName!,
+                    style: TayyibText.footnote(color: TayyibColors.green),
+                  ),
               ],
             ),
           ),
@@ -206,26 +292,43 @@ class _ResultScreenState extends State<ResultScreen> {
     );
   }
 
+  // ─── Product Card ────────────────────────────────────────────────────────────
+
   Widget _buildProductCard() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+    final p = widget.result.product!;
+    return _card(
       child: Row(
         children: [
-          if (widget.result.product!['image_url'] != null && widget.result.product!['image_url'].toString().isNotEmpty)
+          if (p['image_url'] != null && p['image_url'].toString().isNotEmpty)
             ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(widget.result.product!['image_url'], width: 56, height: 56, fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const SizedBox()),
+              borderRadius: BorderRadius.circular(10),
+              child: Image.network(
+                p['image_url'],
+                width: 52,
+                height: 52,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const SizedBox(),
+              ),
             ),
-          const SizedBox(width: 12),
+          if (p['image_url'] != null && p['image_url'].toString().isNotEmpty)
+            const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(widget.result.product!['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-                if (widget.result.product!['brands'] != null)
-                  Text(widget.result.product!['brands'], style: const TextStyle(fontSize: 13, color: Color(0xFF8E8E93))),
+                Text(
+                  p['name'] ?? '',
+                  style: TayyibText.callout(
+                    color: TayyibColors.lbl(context),
+                    weight: FontWeight.w600,
+                  ),
+                ),
+                if (p['brands'] != null)
+                  Text(
+                    p['brands'],
+                    style: TayyibText.footnote(
+                        color: TayyibColors.secondLbl(context)),
+                  ),
               ],
             ),
           ),
@@ -233,17 +336,27 @@ class _ResultScreenState extends State<ResultScreen> {
       ),
     );
   }
+
+  // ─── Community Score ─────────────────────────────────────────────────────────
 
   Widget _buildCommunityScore() {
     if (_loadingScore) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-        child: const Row(
+      return _card(
+        child: Row(
           children: [
-            CupertinoActivityIndicator(),
-            SizedBox(width: 12),
-            Text('Loading community data...', style: TextStyle(color: Color(0xFF8E8E93), fontSize: 14)),
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: TayyibColors.secondLbl(context),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Loading community data...',
+              style: TayyibText.callout(color: TayyibColors.secondLbl(context)),
+            ),
           ],
         ),
       );
@@ -258,64 +371,76 @@ class _ResultScreenState extends State<ResultScreen> {
 
     switch (score.communityVerdict) {
       case 'halal':
-        verdictColor = const Color(0xFF34C759);
+        verdictColor = TayyibColors.green;
         verdictLabel = 'Community says: Halal';
-        verdictIcon = CupertinoIcons.checkmark_circle_fill;
+        verdictIcon = Icons.check_circle_rounded;
         break;
       case 'haram':
-        verdictColor = const Color(0xFFFF3B30);
+        verdictColor = TayyibColors.red;
         verdictLabel = 'Community flagged issues';
-        verdictIcon = CupertinoIcons.xmark_circle_fill;
+        verdictIcon = Icons.cancel_rounded;
         break;
       case 'unverified':
-        verdictColor = const Color(0xFF8E8E93);
+        verdictColor = TayyibColors.secondLbl(context);
         verdictLabel = 'Not yet verified';
-        verdictIcon = CupertinoIcons.question_circle_fill;
+        verdictIcon = Icons.help_rounded;
         break;
       default:
-        verdictColor = const Color(0xFFFF9500);
+        verdictColor = TayyibColors.orange;
         verdictLabel = 'Community: Mixed opinions';
-        verdictIcon = CupertinoIcons.exclamationmark_circle_fill;
+        verdictIcon = Icons.warning_rounded;
     }
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+    return _card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(CupertinoIcons.person_2_fill, color: const Color(0xFF8E8E93), size: 18),
-              const SizedBox(width: 6),
-              const Text('Community', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF8E8E93), letterSpacing: 0.3)),
-            ],
+          Text(
+            'COMMUNITY',
+            style: TayyibText.sectionHeader(
+                color: TayyibColors.secondLbl(context)),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Row(
             children: [
               Icon(verdictIcon, color: verdictColor, size: 22),
               const SizedBox(width: 8),
-              Text(verdictLabel, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: verdictColor)),
+              Text(
+                verdictLabel,
+                style: TayyibText.callout(
+                    color: verdictColor, weight: FontWeight.w700),
+              ),
             ],
           ),
           if (score.totalVotes > 0) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             Row(
               children: [
-                _votePill('✅ ${score.confirmedHalalCount}', const Color(0xFFE8F8ED), const Color(0xFF34C759)),
+                _votePill('✅ ${score.confirmedHalalCount}',
+                    TayyibColors.greenTint, TayyibColors.green),
                 const SizedBox(width: 8),
-                _votePill('❌ ${score.foundIssueCount}', const Color(0xFFFFEBEA), const Color(0xFFFF3B30)),
+                _votePill('❌ ${score.foundIssueCount}', TayyibColors.redTint,
+                    TayyibColors.red),
                 const SizedBox(width: 8),
-                _votePill('⚠️ ${score.notSureCount}', const Color(0xFFFFF3E0), const Color(0xFFFF9500)),
+                _votePill('⚠️ ${score.notSureCount}', TayyibColors.orangeTint,
+                    TayyibColors.orange),
               ],
             ),
-            const SizedBox(height: 8),
-            Text('${score.totalVotes} ${score.totalVotes == 1 ? 'person' : 'people'} verified this product',
-                style: const TextStyle(fontSize: 12, color: Color(0xFF8E8E93))),
+            const SizedBox(height: 10),
+            Text(
+              '${score.totalVotes} ${score.totalVotes == 1 ? 'person' : 'people'} verified this product',
+              style:
+                  TayyibText.footnote(color: TayyibColors.secondLbl(context)),
+            ),
           ] else
-            const Text('Be the first to verify this product',
-                style: TextStyle(fontSize: 13, color: Color(0xFF8E8E93))),
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Be the first to verify this product',
+                style:
+                    TayyibText.callout(color: TayyibColors.secondLbl(context)),
+              ),
+            ),
         ],
       ),
     );
@@ -323,39 +448,69 @@ class _ResultScreenState extends State<ResultScreen> {
 
   Widget _votePill(String text, Color bg, Color fg) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
-      child: Text(text, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: fg)),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(50),
+      ),
+      child: Text(
+        text,
+        style: TayyibText.footnote(color: fg, weight: FontWeight.w700),
+      ),
     );
   }
 
+  // ─── Voting Section ──────────────────────────────────────────────────────────
+
   Widget _buildVotingSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+    return _card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Did you buy this?', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+          Text(
+            'Did you buy this?',
+            style: TayyibText.headline(color: TayyibColors.lbl(context)),
+          ),
           const SizedBox(height: 4),
-          const Text('Help other Muslims make the right choice.', style: TextStyle(fontSize: 13, color: Color(0xFF8E8E93))),
-          const SizedBox(height: 16),
+          Text(
+            'Help other Muslims make the right choice.',
+            style: TayyibText.footnote(color: TayyibColors.secondLbl(context)),
+          ),
+          const SizedBox(height: 18),
           if (_submittingVote)
-            const Center(child: CupertinoActivityIndicator())
+            Center(
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: TayyibColors.lbl(context),
+                ),
+              ),
+            )
           else
             Row(
               children: [
-                Expanded(child: _voteButton('✅', 'Halal', 'confirmed_halal', const Color(0xFF34C759))),
+                Expanded(
+                    child: _voteButton(
+                        '✅', 'Halal', 'confirmed_halal', TayyibColors.green)),
                 const SizedBox(width: 8),
-                Expanded(child: _voteButton('❌', 'Issue', 'found_issue', const Color(0xFFFF3B30))),
+                Expanded(
+                    child: _voteButton(
+                        '❌', 'Issue', 'found_issue', TayyibColors.red)),
                 const SizedBox(width: 8),
-                Expanded(child: _voteButton('⚠️', 'Unsure', 'not_sure', const Color(0xFFFF9500))),
+                Expanded(
+                    child: _voteButton(
+                        '⚠️', 'Unsure', 'not_sure', TayyibColors.orange)),
               ],
             ),
           if (_myVote != null) ...[
-            const SizedBox(height: 10),
-            Text('Your vote: ${_myVote!.replaceAll('_', ' ')}',
-                style: const TextStyle(fontSize: 12, color: Color(0xFF8E8E93))),
+            const SizedBox(height: 12),
+            Text(
+              'Your vote: ${_myVote!.replaceAll('_', ' ')}',
+              style:
+                  TayyibText.footnote(color: TayyibColors.secondLbl(context)),
+            ),
           ],
         ],
       ),
@@ -368,40 +523,62 @@ class _ResultScreenState extends State<ResultScreen> {
       onTap: () => _submitVote(value),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: selected ? color.withOpacity(0.15) : const Color(0xFFF2F2F7),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: selected ? color : Colors.transparent, width: 2),
+          color:
+              selected ? color.withOpacity(0.12) : TayyibColors.fillC(context),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? color : Colors.transparent,
+            width: 1.5,
+          ),
         ),
         child: Column(
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 20)),
-            const SizedBox(height: 2),
-            Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: selected ? color : const Color(0xFF8E8E93))),
+            Text(emoji, style: const TextStyle(fontSize: 22)),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TayyibText.footnote(
+                color: selected ? color : TayyibColors.secondLbl(context),
+                weight: FontWeight.w700,
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
+  // ─── Ingredients ─────────────────────────────────────────────────────────────
+
   Widget _buildIngredientSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          padding: const EdgeInsets.only(bottom: 10),
           child: Row(
             children: [
-              const Text('INGREDIENTS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF8E8E93), letterSpacing: 0.5)),
+              Text(
+                'INGREDIENTS',
+                style: TayyibText.sectionHeader(
+                    color: TayyibColors.secondLbl(context)),
+              ),
               const Spacer(),
-              Text('${widget.result.ingredients.length} items',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF8E8E93))),
+              Text(
+                '${widget.result.ingredients.length} items',
+                style:
+                    TayyibText.caption1(color: TayyibColors.secondLbl(context)),
+              ),
             ],
           ),
         ),
         Container(
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(
+            color: TayyibColors.cardBg(context),
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Column(
             children: widget.result.ingredients.asMap().entries.map((entry) {
               final i = entry.key;
@@ -410,7 +587,12 @@ class _ResultScreenState extends State<ResultScreen> {
               return Column(
                 children: [
                   _ingredientRow(ing),
-                  if (!isLast) const Divider(height: 1, indent: 52),
+                  if (!isLast)
+                    Divider(
+                      height: 1,
+                      color: TayyibColors.sep(context),
+                      indent: 54,
+                    ),
                 ],
               );
             }).toList(),
@@ -426,24 +608,24 @@ class _ResultScreenState extends State<ResultScreen> {
 
     switch (ing.status) {
       case 'halal':
-        statusColor = const Color(0xFF34C759);
-        statusIcon = CupertinoIcons.checkmark_circle_fill;
+        statusColor = TayyibColors.green;
+        statusIcon = Icons.check_circle_rounded;
         break;
       case 'haram':
       case 'hanafi_haram':
       case 'shafii_haram':
       case 'maliki_haram':
       case 'hanbali_haram':
-        statusColor = const Color(0xFFFF3B30);
-        statusIcon = CupertinoIcons.xmark_circle_fill;
+        statusColor = TayyibColors.red;
+        statusIcon = Icons.cancel_rounded;
         break;
       default:
-        statusColor = const Color(0xFFFF9500);
-        statusIcon = CupertinoIcons.exclamationmark_circle_fill;
+        statusColor = TayyibColors.orange;
+        statusIcon = Icons.warning_rounded;
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -456,23 +638,43 @@ class _ResultScreenState extends State<ResultScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(ing.original,
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black)),
+                      child: Text(
+                        ing.original,
+                        style: TayyibText.callout(
+                          color: TayyibColors.lbl(context),
+                          weight: FontWeight.w600,
+                        ),
+                      ),
                     ),
-                    if (ing.aiClassified)
+                    if (ing.aiClassified) ...[
+                      const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: const Color(0xFFEDE9FE),
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Text('AI', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF7C3AED))),
+                        child: const Text(
+                          'AI',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF7C3AED),
+                          ),
+                        ),
                       ),
+                    ],
                   ],
                 ),
                 if (ing.source.isNotEmpty) ...[
                   const SizedBox(height: 3),
-                  Text(ing.source, style: const TextStyle(fontSize: 13, color: Color(0xFF8E8E93), height: 1.3)),
+                  Text(
+                    ing.source,
+                    style: TayyibText.footnote(
+                      color: TayyibColors.secondLbl(context),
+                    ),
+                  ),
                 ],
               ],
             ),
@@ -482,39 +684,69 @@ class _ResultScreenState extends State<ResultScreen> {
     );
   }
 
+  // ─── Unknowns ─────────────────────────────────────────────────────────────────
+
   Widget _buildUnknownsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.only(left: 4, bottom: 8),
-          child: Text('UNRECOGNIZED', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF8E8E93), letterSpacing: 0.5)),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Text(
+            'UNRECOGNIZED',
+            style: TayyibText.sectionHeader(
+                color: TayyibColors.secondLbl(context)),
+          ),
         ),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+        _card(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('These ingredients were not found in our database.',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF8E8E93))),
-              const SizedBox(height: 10),
+              Text(
+                'These ingredients were not found in our database.',
+                style:
+                    TayyibText.footnote(color: TayyibColors.secondLbl(context)),
+              ),
+              const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: widget.result.unknownIngredients.map((u) => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF2F2F7),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(u, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                )).toList(),
+                children: widget.result.unknownIngredients
+                    .map((u) => Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: TayyibColors.fillC(context),
+                            borderRadius: BorderRadius.circular(50),
+                          ),
+                          child: Text(
+                            u,
+                            style: TayyibText.footnote(
+                              color: TayyibColors.lbl(context),
+                              weight: FontWeight.w600,
+                            ),
+                          ),
+                        ))
+                    .toList(),
               ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+  Widget _card({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: TayyibColors.cardBg(context),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: child,
     );
   }
 }

@@ -1,166 +1,135 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
+import '../core/theme.dart';
 import '../services/auth_service.dart';
 import 'home_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
-
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final _usernameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _userCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
   String _madhab = 'hanafi';
-  bool _isLoading = false;
-  bool _obscurePassword = true;
+  bool _loading = false;
+  bool _obscure = true;
 
-  final _madhabs = [
-    {'value': 'hanafi', 'label': 'Hanafi', 'region': 'South Asia, Central Asia, Turkey'},
+  static const _madhabs = [
+    {
+      'value': 'hanafi',
+      'label': 'Hanafi',
+      'region': 'South Asia · Central Asia · Turkey'
+    },
     {'value': 'maliki', 'label': 'Maliki', 'region': 'North & West Africa'},
-    {'value': 'shafii', 'label': "Shafi'i", 'region': 'SE Asia, East Africa'},
+    {'value': 'shafii', 'label': "Shafi'i", 'region': 'SE Asia · East Africa'},
     {'value': 'hanbali', 'label': 'Hanbali', 'region': 'Gulf countries'},
   ];
 
   Future<void> _register() async {
-    if (_usernameController.text.trim().isEmpty ||
-        _emailController.text.trim().isEmpty ||
-        _passwordController.text.trim().isEmpty) {
-      _showError('Please fill in all fields.');
+    if (_userCtrl.text.trim().isEmpty ||
+        _emailCtrl.text.trim().isEmpty ||
+        _passCtrl.text.trim().isEmpty) {
+      _err('Please fill in all fields.');
       return;
     }
-    setState(() => _isLoading = true);
+    setState(() => _loading = true);
     try {
       await AuthService.register(
-        username: _usernameController.text.trim(),
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+        username: _userCtrl.text.trim(),
+        email: _emailCtrl.text.trim(),
+        password: _passCtrl.text.trim(),
         madhab: _madhab,
       );
-      if (mounted) {
+      if (mounted)
         Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-          (_) => false,
-        );
-      }
+            context,
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            (_) => false);
     } catch (e) {
-      _showError(e.toString().replaceAll('Exception: ', ''));
+      _err(e.toString().replaceAll('Exception: ', ''));
     } finally {
-      setState(() => _isLoading = false);
+      setState(() => _loading = false);
     }
   }
 
-  void _showError(String message) {
-    showCupertinoDialog(
-      context: context,
-      builder: (_) => CupertinoAlertDialog(
-        title: const Text('Error'),
-        content: Text(message),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('OK'),
-            onPressed: () => Navigator.pop(context),
-          )
-        ],
-      ),
-    );
+  void _err(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: TayyibText.callout(color: Colors.white)),
+      backgroundColor: TayyibColors.red,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.all(16),
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
+    final labelColor = TayyibColors.lbl(context);
+    final cardColor = TayyibColors.cardBg(context);
+    final secColor = TayyibColors.secondLbl(context);
+    final sepColor = TayyibColors.sep(context);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
+      backgroundColor: TayyibColors.bg(context),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF2F2F7),
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        centerTitle: true,
-        title: const Text('Create Account',
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.black)),
         leading: IconButton(
-          icon: const Icon(CupertinoIcons.back, color: Color(0xFF007AFF)),
+          icon: Icon(Icons.arrow_back_rounded, color: labelColor),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 24),
+              const SizedBox(height: 8),
+              Text('Create account',
+                  style: TayyibText.largeTitle(color: labelColor)),
+              const SizedBox(height: 8),
+              Text('Join thousands of Muslims making informed food choices.',
+                  style: TayyibText.body(color: secColor)),
 
-              Center(
-                child: Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Center(
-                    child: Image.asset(
-                      'assets/1.png',
-                      width: 100,
-                      height: 100,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Center(
-                child: Text('Create your account to start scanning',
-                    style: TextStyle(fontSize: 15, color: Color(0xFF8E8E93))),
-              ),
+              const SizedBox(height: 36),
 
-              const SizedBox(height: 32),
-
-              // Account details
-              _sectionLabel('ACCOUNT DETAILS'),
+              // Account fields
+              _sectionLabel('ACCOUNT'),
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                    color: cardColor, borderRadius: BorderRadius.circular(16)),
                 child: Column(
                   children: [
                     _field(
-                      controller: _usernameController,
-                      hint: 'Username',
-                      icon: CupertinoIcons.person,
-                      isFirst: true,
-                      isLast: false,
-                    ),
-                    const Divider(height: 1, indent: 52),
+                        ctrl: _userCtrl,
+                        hint: 'Username',
+                        icon: Icons.person_outline_rounded,
+                        isTop: true),
+                    Divider(height: 1, color: sepColor, indent: 56),
                     _field(
-                      controller: _emailController,
-                      hint: 'Email',
-                      icon: CupertinoIcons.mail,
-                      keyboardType: TextInputType.emailAddress,
-                      isFirst: false,
-                      isLast: false,
-                    ),
-                    const Divider(height: 1, indent: 52),
+                        ctrl: _emailCtrl,
+                        hint: 'Email',
+                        icon: Icons.mail_outline_rounded,
+                        keyboard: TextInputType.emailAddress),
+                    Divider(height: 1, color: sepColor, indent: 56),
                     _field(
-                      controller: _passwordController,
+                      ctrl: _passCtrl,
                       hint: 'Password (min 8 characters)',
-                      icon: CupertinoIcons.lock,
-                      obscure: _obscurePassword,
-                      isFirst: false,
-                      isLast: true,
+                      icon: Icons.lock_outline_rounded,
+                      obscure: _obscure,
+                      isBottom: true,
                       suffix: GestureDetector(
-                        onTap: () => setState(() => _obscurePassword = !_obscurePassword),
+                        onTap: () => setState(() => _obscure = !_obscure),
                         child: Padding(
                           padding: const EdgeInsets.only(right: 16),
                           child: Icon(
-                            _obscurePassword ? CupertinoIcons.eye : CupertinoIcons.eye_slash,
-                            color: const Color(0xFF8E8E93),
-                            size: 20,
-                          ),
+                              _obscure
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: secColor,
+                              size: 20),
                         ),
                       ),
                     ),
@@ -170,92 +139,104 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               const SizedBox(height: 32),
 
-              // Madhab
-              _sectionLabel('SCHOOL OF THOUGHT (MADHAB)'),
+              // Madhab selector
+              _sectionLabel('SCHOOL OF THOUGHT'),
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                    color: cardColor, borderRadius: BorderRadius.circular(16)),
                 child: Column(
-                  children: _madhabs.asMap().entries.map((entry) {
-                    final i = entry.key;
-                    final m = entry.value;
+                  children: List.generate(_madhabs.length, (i) {
+                    final m = _madhabs[i];
                     final selected = _madhab == m['value'];
                     final isLast = i == _madhabs.length - 1;
                     return Column(
                       children: [
-                        InkWell(
-                          onTap: () => setState(() => _madhab = m['value']!),
-                          borderRadius: BorderRadius.vertical(
-                            top: i == 0 ? const Radius.circular(12) : Radius.zero,
-                            bottom: isLast ? const Radius.circular(12) : Radius.zero,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        m['label']!,
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w500,
-                                          color: selected ? const Color(0xFF007AFF) : Colors.black,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        m['region']!,
-                                        style: const TextStyle(fontSize: 13, color: Color(0xFF8E8E93)),
-                                      ),
-                                    ],
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => setState(() => _madhab = m['value']!),
+                            borderRadius: BorderRadius.vertical(
+                              top: i == 0
+                                  ? const Radius.circular(16)
+                                  : Radius.zero,
+                              bottom: isLast
+                                  ? const Radius.circular(16)
+                                  : Radius.zero,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 14),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(m['label']!,
+                                            style: TayyibText.callout(
+                                              color: selected
+                                                  ? labelColor
+                                                  : labelColor,
+                                              weight: selected
+                                                  ? FontWeight.w700
+                                                  : FontWeight.w500,
+                                            )),
+                                        const SizedBox(height: 2),
+                                        Text(m['region']!,
+                                            style: TayyibText.footnote(
+                                                color: secColor)),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 200),
-                                  child: selected
-                                      ? const Icon(CupertinoIcons.checkmark, color: Color(0xFF007AFF), size: 18, key: ValueKey('check'))
-                                      : const SizedBox(width: 18, key: ValueKey('empty')),
-                                ),
-                              ],
+                                  if (selected)
+                                    Icon(Icons.check_rounded,
+                                        color: labelColor, size: 20)
+                                  else
+                                    const SizedBox(width: 20),
+                                ],
+                              ),
                             ),
                           ),
                         ),
-                        if (!isLast) const Divider(height: 1, indent: 16),
+                        if (!isLast)
+                          Divider(height: 1, color: sepColor, indent: 20),
                       ],
                     );
-                  }).toList(),
+                  }),
                 ),
               ),
 
-              const SizedBox(height: 12),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Text(
-                  'Your madhab determines how ambiguous ingredients are classified. You can change this in settings.',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF8E8E93), height: 1.4),
+                  'Determines how ambiguous ingredients are classified. Can be changed later.',
+                  style: TayyibText.footnote(color: secColor),
                 ),
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 36),
 
-              // Submit button
               SizedBox(
                 width: double.infinity,
-                height: 50,
-                child: CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  onPressed: _isLoading ? null : _register,
-                  color: const Color(0xFF007AFF),
-                  borderRadius: BorderRadius.circular(12),
-                  child: _isLoading
-                      ? const CupertinoActivityIndicator(color: Colors.white)
-                      : const Text('Create Account',
-                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.white)),
+                height: 54,
+                child: FilledButton(
+                  onPressed: _loading ? null : _register,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: labelColor,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(50)),
+                  ),
+                  child: _loading
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: TayyibColors.bg(context)))
+                      : Text('Create account',
+                          style: TayyibText.buttonLarge(
+                              color: TayyibColors.bg(context))),
                 ),
               ),
 
@@ -267,58 +248,54 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  Widget _sectionLabel(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 8),
-      child: Text(
-        text,
-        style: const TextStyle(
-            fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF8E8E93), letterSpacing: 0.5),
-      ),
-    );
-  }
+  Widget _sectionLabel(String text) => Padding(
+        padding: const EdgeInsets.only(left: 4, bottom: 10),
+        child: Text(text,
+            style: TayyibText.sectionHeader(
+                color: TayyibColors.secondLbl(context))),
+      );
 
-  // Updated Field helper
   Widget _field({
-    required TextEditingController controller,
+    required TextEditingController ctrl,
     required String hint,
     required IconData icon,
     bool obscure = false,
-    bool isFirst = false,
-    bool isLast = false,
-    TextInputType keyboardType = TextInputType.text,
+    bool isTop = false,
+    bool isBottom = false,
+    TextInputType keyboard = TextInputType.text,
     Widget? suffix,
   }) {
     return TextField(
-      controller: controller,
+      controller: ctrl,
       obscureText: obscure,
-      keyboardType: keyboardType,
-      // FIX: Force typing color to black for Dark Mode compatibility
-      style: const TextStyle(fontSize: 16, color: Colors.black),
+      keyboardType: keyboard,
+      style: TayyibText.body(color: TayyibColors.lbl(context)),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Color(0xFFBDBDBD), fontSize: 16),
-        prefixIcon: Icon(icon, color: const Color(0xFF8E8E93), size: 20),
+        hintStyle: TayyibText.body(color: TayyibColors.tertiaryLabel),
+        prefixIcon:
+            Icon(icon, color: TayyibColors.secondLbl(context), size: 20),
         suffixIcon: suffix,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: TayyibColors.cardBg(context),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.vertical(
-            top: isFirst ? const Radius.circular(12) : Radius.zero,
-            bottom: isLast ? const Radius.circular(12) : Radius.zero,
+            top: isTop ? const Radius.circular(16) : Radius.zero,
+            bottom: isBottom ? const Radius.circular(16) : Radius.zero,
           ),
           borderSide: BorderSide.none,
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
     );
   }
 
   @override
   void dispose() {
-    _usernameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
+    _userCtrl.dispose();
+    _emailCtrl.dispose();
+    _passCtrl.dispose();
     super.dispose();
   }
 }

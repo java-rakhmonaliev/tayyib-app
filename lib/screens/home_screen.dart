@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import '../core/theme.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/preferences_service.dart';
@@ -10,405 +10,638 @@ import '../models/analysis_result.dart';
 import 'result_screen.dart';
 import 'scanner_screen.dart';
 import 'login_screen.dart';
+import '../main.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
-
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final TextEditingController _ingredientsController = TextEditingController();
-  final TextEditingController _productNameController = TextEditingController();
-  final TextEditingController _barcodeController = TextEditingController();
+  final _ingredientsCtrl = TextEditingController();
+  final _productNameCtrl = TextEditingController();
+  final _barcodeCtrl = TextEditingController();
   String _madhab = 'hanafi';
   bool _isLoading = false;
 
-  final _madhabs = ['hanafi', 'maliki', 'shafii', 'hanbali'];
-  final _madhabLabels = ['Hanafi', 'Maliki', "Shafi'i", 'Hanbali'];
+  static const _madhabs = [
+    {'value': 'hanafi', 'label': 'Hanafi'},
+    {'value': 'maliki', 'label': 'Maliki'},
+    {'value': 'shafii', 'label': "Shafi'i"},
+    {'value': 'hanbali', 'label': 'Hanbali'},
+  ];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _loadMadhab();
+    PreferencesService.getMadhab().then((v) => setState(() => _madhab = v));
   }
 
-  Future<void> _loadMadhab() async {
-    final madhab = await PreferencesService.getMadhab();
-    setState(() => _madhab = madhab);
-  }
-
-  Future<void> _setMadhab(String madhab) async {
+  Future<void> _setMadhab(String v) async {
     HapticFeedback.selectionClick();
-    await PreferencesService.setMadhab(madhab);
-    setState(() => _madhab = madhab);
+    await PreferencesService.setMadhab(v);
+    setState(() => _madhab = v);
   }
 
   Future<void> _analyzeText() async {
-    if (_ingredientsController.text.trim().isEmpty) {
-      _showError('Please enter ingredients.');
+    if (_ingredientsCtrl.text.trim().isEmpty) {
+      _err('Please enter ingredients.');
       return;
     }
     setState(() => _isLoading = true);
     try {
-      final result = await ApiService.analyzeText(
-        ingredients: _ingredientsController.text.trim(),
+      final r = await ApiService.analyzeText(
+        ingredients: _ingredientsCtrl.text.trim(),
         madhab: _madhab,
-        productName: _productNameController.text.trim(),
+        productName: _productNameCtrl.text.trim(),
       );
-      _navigateToResult(result);
+      _go(r);
     } catch (e) {
-      _showError(e.toString().replaceAll('Exception: ', ''));
+      _err(e.toString().replaceAll('Exception: ', ''));
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
   Future<void> _analyzeBarcode() async {
-    if (_barcodeController.text.trim().isEmpty) {
-      _showError('Please enter a barcode.');
+    if (_barcodeCtrl.text.trim().isEmpty) {
+      _err('Please enter a barcode.');
       return;
     }
     setState(() => _isLoading = true);
     try {
-      final result = await ApiService.analyzeBarcode(
-        barcode: _barcodeController.text.trim(),
-        madhab: _madhab,
-      );
-      _navigateToResult(result);
+      final r = await ApiService.analyzeBarcode(
+          barcode: _barcodeCtrl.text.trim(), madhab: _madhab);
+      _go(r);
     } catch (e) {
-      _showError(e.toString().replaceAll('Exception: ', ''));
+      _err(e.toString().replaceAll('Exception: ', ''));
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _pickAndAnalyzeImage(ImageSource source) async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: source, imageQuality: 85);
-    if (picked == null) return;
+  Future<void> _pickImage(ImageSource src) async {
+    final p = await ImagePicker().pickImage(source: src, imageQuality: 85);
+    if (p == null) return;
     setState(() => _isLoading = true);
     try {
-      final result = await ApiService.analyzeImage(image: File(picked.path), madhab: _madhab);
-      _navigateToResult(result);
+      final r =
+          await ApiService.analyzeImage(image: File(p.path), madhab: _madhab);
+      _go(r);
     } catch (e) {
-      _showError(e.toString().replaceAll('Exception: ', ''));
+      _err(e.toString().replaceAll('Exception: ', ''));
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
-  void _navigateToResult(AnalysisResult result) {
-    Navigator.push(
-      context,
-      CupertinoPageRoute(builder: (_) => ResultScreen(result: result)),
-    );
+  void _go(AnalysisResult r) => Navigator.push(
+      context, MaterialPageRoute(builder: (_) => ResultScreen(result: r)));
+
+  void _err(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: TayyibText.callout(color: Colors.white)),
+      backgroundColor: TayyibColors.red,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.all(16),
+    ));
   }
 
-  void _showError(String message) {
-    showCupertinoDialog(
-      context: context,
-      builder: (_) => CupertinoAlertDialog(
-        title: const Text('Error'),
-        content: Text(message),
-        actions: [CupertinoDialogAction(child: const Text('OK'), onPressed: () => Navigator.pop(context))],
-      ),
-    );
-  }
-
-  void _showProfileSheet() async {
+  void _showProfile() async {
     final user = await AuthService.getSavedUser();
     if (!mounted) return;
-    showCupertinoModalPopup(
+
+    showModalBottomSheet(
       context: context,
-      builder: (_) => CupertinoActionSheet(
-        title: Text(user?.username ?? ''),
-        message: Text(user?.email ?? ''),
-        actions: [
-          CupertinoActionSheetAction(
-            onPressed: () async {
-              Navigator.pop(context);
-              await AuthService.logout();
-              if (mounted) {
-                Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
-              }
-            },
-            isDestructiveAction: true,
-            child: const Text('Sign Out'),
-          ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => _ProfileSheet(
+        username: user?.username ?? '',
+        email: user?.email ?? '',
+        madhab: user?.madhab ?? '',
+        onLogout: () async {
+          Navigator.pop(context);
+          await AuthService.logout();
+          if (mounted) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const LoginScreen()),
+              (_) => false,
+            );
+          }
+        },
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final labelColor = TayyibColors.lbl(context);
+    final bgColor = TayyibColors.bg(context);
+    final cardColor = TayyibColors.cardBg(context);
+    final secColor = TayyibColors.secondLbl(context);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
-      body: _isLoading ? _buildLoading() : _buildContent(),
+      backgroundColor: bgColor,
+      body: _isLoading
+          ? _buildLoading(secColor)
+          : _buildBody(labelColor, bgColor, cardColor, secColor),
     );
   }
 
-  Widget _buildLoading() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CupertinoActivityIndicator(radius: 16),
-          SizedBox(height: 16),
-          Text('Analyzing...', style: TextStyle(fontSize: 15, color: Color(0xFF8E8E93))),
-        ],
-      ),
-    );
-  }
+  Widget _buildLoading(Color secColor) => Center(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const CircularProgressIndicator(strokeWidth: 2),
+          const SizedBox(height: 16),
+          Text('Analyzing...', style: TayyibText.callout(color: secColor)),
+        ]),
+      );
 
-  Widget _buildContent() {
-    return NestedScrollView(
-      headerSliverBuilder: (context, innerBoxIsScrolled) => [
-        CupertinoSliverNavigationBar(
-          largeTitle: const Text('Tayyib'),
-          trailing: CupertinoButton(
-            padding: EdgeInsets.zero,
-            onPressed: _showProfileSheet,
-            child: const Icon(CupertinoIcons.person_circle, size: 28, color: Color(0xFF007AFF)),
-          ),
-          backgroundColor: const Color(0xFFF2F2F7),
-          border: null,
-        ),
-      ],
-      body: Column(
-        children: [
-          _buildMadhabPicker(),
-          _buildTabBar(),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildTextTab(),
-                _buildBarcodeTab(),
-                _buildImageTab(),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-Widget _buildMadhabPicker() {
-  return Padding(
-    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-    child: SegmentedButton<String>(
-      segments: const [
-        ButtonSegment(value: 'hanafi', label: Text('Hanafi')),
-        ButtonSegment(value: 'maliki', label: Text('Maliki')),
-        ButtonSegment(value: 'shafii', label: Text("Shafi'i")),
-        ButtonSegment(value: 'hanbali', label: Text('Hanbali')),
-      ],
-      selected: {_madhab},
-      onSelectionChanged: (v) => _setMadhab(v.first),
-      style: ButtonStyle(
-        padding: WidgetStateProperty.all(EdgeInsets.zero), 
-        textStyle: WidgetStateProperty.all(
-          const TextStyle(fontSize: 10, fontWeight: FontWeight.w500), // Slightly smaller font
-        ),
-      ),
-    ),
-  );
-}
-
-  Widget _buildTabBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: TabBar(
-        controller: _tabController,
-        dividerColor: Colors.transparent,
-        indicator: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 2))],
-        ),
-        indicatorSize: TabBarIndicatorSize.tab,
-        labelColor: const Color(0xFF007AFF),
-        unselectedLabelColor: const Color(0xFF8E8E93),
-        labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-        tabs: const [
-          Tab(text: 'Text'),
-          Tab(text: 'Barcode'),
-          Tab(text: 'Image'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTextTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+  Widget _buildBody(
+      Color labelColor, Color bgColor, Color cardColor, Color secColor) {
+    return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 8),
-          _sectionHeader('INGREDIENTS'),
-          _appleCard(
-            child: Column(
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 20, 16, 0),
+            child: Row(
               children: [
-                CupertinoTextField(
-                  controller: _ingredientsController,
-                  placeholder: 'Paste ingredient list here...',
-                  maxLines: 5,
-                  minLines: 4,
-                  padding: const EdgeInsets.all(14),
-                  decoration: const BoxDecoration(),
-                  style: const TextStyle(fontSize: 16),
-                  placeholderStyle: const TextStyle(color: Color(0xFFBDBDBD), fontSize: 16),
-                ),
-                const Divider(height: 1),
-                CupertinoTextField(
-                  controller: _productNameController,
-                  placeholder: 'Product name (optional)',
-                  padding: const EdgeInsets.all(14),
-                  decoration: const BoxDecoration(),
-                  style: const TextStyle(fontSize: 16),
-                  placeholderStyle: const TextStyle(color: Color(0xFFBDBDBD), fontSize: 16),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          _primaryButton('Analyze Ingredients', const Color(0xFF007AFF), _analyzeText),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBarcodeTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 8),
-          _sectionHeader('BARCODE'),
-          _appleCard(
-            child: CupertinoTextField(
-              controller: _barcodeController,
-              placeholder: 'e.g. 737628064502',
-              keyboardType: TextInputType.number,
-              padding: const EdgeInsets.all(14),
-              decoration: const BoxDecoration(),
-              style: const TextStyle(fontSize: 16),
-              placeholderStyle: const TextStyle(color: Color(0xFFBDBDBD), fontSize: 16),
-              prefix: const Padding(
-                padding: EdgeInsets.only(left: 14),
-                child: Icon(CupertinoIcons.barcode, color: Color(0xFF8E8E93), size: 20),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _primaryButton('Scan Barcode', const Color(0xFF8E8E93), () async {
-            final barcode = await Navigator.push<String>(
-              context,
-              CupertinoPageRoute(builder: (_) => const ScannerScreen()),
-            );
-            if (barcode != null) _barcodeController.text = barcode;
-          }),
-          const SizedBox(height: 10),
-          _primaryButton('Fetch & Analyze', const Color(0xFF007AFF), _analyzeBarcode),
-          const SizedBox(height: 12),
-          const Center(
-            child: Text('Powered by Open Food Facts — 3M+ products',
-                style: TextStyle(fontSize: 12, color: Color(0xFF8E8E93))),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildImageTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF3CD),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFFFD60A).withOpacity(0.5)),
-            ),
-            child: const Row(
-              children: [
-                Icon(CupertinoIcons.exclamationmark_triangle, color: Color(0xFFFF9500), size: 20),
-                SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    'If the product has a Halal certification logo (MUI, JAKIM, IFANCA), trust that directly.',
-                    style: TextStyle(fontSize: 13, color: Color(0xFF7A5C00), height: 1.4),
+                    child: Text('Tayyib',
+                        style: TayyibText.largeTitle(color: labelColor))),
+                IconButton(
+                  onPressed: _showProfile,
+                  icon: Icon(Icons.person_outline_rounded,
+                      color: labelColor, size: 26),
+                  style: IconButton.styleFrom(
+                    backgroundColor: TayyibColors.fillC(context),
+                    shape: const CircleBorder(),
+                    padding: const EdgeInsets.all(8),
                   ),
                 ),
               ],
             ),
           ),
+
+          const SizedBox(height: 20),
+
+          // Madhab chips — horizontal scroll, no alignment issues
+          SizedBox(
+            height: 36,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              itemCount: _madhabs.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (_, i) {
+                final m = _madhabs[i];
+                final selected = _madhab == m['value'];
+                return GestureDetector(
+                  onTap: () => _setMadhab(m['value']!),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: selected ? labelColor : cardColor,
+                      borderRadius: BorderRadius.circular(50),
+                    ),
+                    child: Text(
+                      m['label']!,
+                      style: TayyibText.callout(
+                        color: selected ? bgColor : secColor,
+                        weight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+
           const SizedBox(height: 16),
-          _primaryButton('Choose from Gallery', const Color(0xFF007AFF),
-              () => _pickAndAnalyzeImage(ImageSource.gallery)),
-          const SizedBox(height: 10),
-          _primaryButton('Take Photo', const Color(0xFF34C759),
-              () => _pickAndAnalyzeImage(ImageSource.camera)),
-          const SizedBox(height: 12),
-          const Center(
-            child: Text('Clear photo of ingredient list only',
-                style: TextStyle(fontSize: 12, color: Color(0xFF8E8E93))),
+
+          // Tab bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Container(
+              height: 40,
+              decoration: BoxDecoration(
+                  color: cardColor, borderRadius: BorderRadius.circular(12)),
+              child: TabBar(
+                controller: _tabController,
+                dividerColor: Colors.transparent,
+                indicator: BoxDecoration(
+                  color: TayyibColors.fillC(context),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                indicatorSize: TabBarIndicatorSize.tab,
+                indicatorPadding: const EdgeInsets.all(3),
+                labelColor: labelColor,
+                unselectedLabelColor: secColor,
+                labelStyle: TayyibText.callout(weight: FontWeight.w700),
+                unselectedLabelStyle:
+                    TayyibText.callout(weight: FontWeight.w500),
+                tabs: const [
+                  Tab(text: 'Text'),
+                  Tab(text: 'Barcode'),
+                  Tab(text: 'Image')
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 4),
+
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _textTab(labelColor, cardColor, secColor),
+                _barcodeTab(labelColor, cardColor, secColor),
+                _imageTab(cardColor, secColor)
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _sectionHeader(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 8),
-      child: Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF8E8E93), letterSpacing: 0.5)),
+  Widget _textTab(Color lbl, Color card, Color sec) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('INGREDIENTS', style: TayyibText.sectionHeader(color: sec)),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+              color: card, borderRadius: BorderRadius.circular(16)),
+          child: Column(children: [
+            TextField(
+              controller: _ingredientsCtrl,
+              maxLines: 5,
+              minLines: 4,
+              style: TayyibText.body(color: lbl),
+              decoration: InputDecoration(
+                hintText: 'Paste ingredient list here...',
+                hintStyle: TayyibText.body(color: TayyibColors.tertiaryLabel),
+                filled: true,
+                fillColor: card,
+                border: OutlineInputBorder(
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(16)),
+                    borderSide: BorderSide.none),
+                contentPadding: const EdgeInsets.all(16),
+              ),
+            ),
+            Divider(height: 1, color: TayyibColors.sep(context)),
+            TextField(
+              controller: _productNameCtrl,
+              style: TayyibText.body(color: lbl),
+              decoration: InputDecoration(
+                hintText: 'Product name (optional)',
+                hintStyle: TayyibText.body(color: TayyibColors.tertiaryLabel),
+                filled: true,
+                fillColor: card,
+                border: OutlineInputBorder(
+                    borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(16)),
+                    borderSide: BorderSide.none),
+                contentPadding: const EdgeInsets.all(16),
+              ),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 20),
+        _btn('Analyze ingredients', _analyzeText),
+      ]),
     );
   }
 
-  Widget _appleCard({required Widget child}) {
-    return Container(
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-      child: child,
+  Widget _barcodeTab(Color lbl, Color card, Color sec) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('BARCODE', style: TayyibText.sectionHeader(color: sec)),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+              color: card, borderRadius: BorderRadius.circular(16)),
+          child: TextField(
+            controller: _barcodeCtrl,
+            keyboardType: TextInputType.number,
+            style: TayyibText.body(color: lbl),
+            decoration: InputDecoration(
+              hintText: 'e.g. 737628064502',
+              hintStyle: TayyibText.body(color: TayyibColors.tertiaryLabel),
+              prefixIcon: Icon(Icons.barcode_reader, color: sec, size: 20),
+              filled: true,
+              fillColor: card,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        _btn('Scan barcode', () async {
+          final code = await Navigator.push<String>(context,
+              MaterialPageRoute(builder: (_) => const ScannerScreen()));
+          if (code != null) _barcodeCtrl.text = code;
+        }, secondary: true),
+        const SizedBox(height: 10),
+        _btn('Fetch & analyze', _analyzeBarcode),
+        const SizedBox(height: 16),
+        Center(
+            child: Text('Powered by Open Food Facts — 3M+ products',
+                style: TayyibText.footnote(color: sec))),
+      ]),
     );
   }
 
-Widget _primaryButton(String label, Color color, VoidCallback onTap) {
-  return SizedBox(
-    width: double.infinity,
-    height: 50,
-    child: FilledButton(
-      onPressed: onTap,
-      style: FilledButton.styleFrom(
-        backgroundColor: color,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  Widget _imageTab(Color card, Color sec) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      child: Column(children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: TayyibColors.orangeTint,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(Icons.info_outline_rounded,
+                color: TayyibColors.orange, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+                child: Text(
+              'If the product has a Halal logo (MUI, JAKIM, IFANCA), trust that certification directly.',
+              style: TayyibText.footnote(color: const Color(0xFF7A5000)),
+            )),
+          ]),
+        ),
+        const SizedBox(height: 16),
+        _btn('Choose from gallery', () => _pickImage(ImageSource.gallery)),
+        const SizedBox(height: 10),
+        _btn('Take photo', () => _pickImage(ImageSource.camera),
+            secondary: true),
+        const SizedBox(height: 12),
+        Center(
+            child: Text('Clear photo of ingredient list only',
+                style: TayyibText.footnote(color: sec))),
+      ]),
+    );
+  }
+
+  Widget _btn(String label, VoidCallback onTap, {bool secondary = false}) {
+    final labelColor = TayyibColors.lbl(context);
+    final bgColor = TayyibColors.bg(context);
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: FilledButton(
+        onPressed: onTap,
+        style: FilledButton.styleFrom(
+          backgroundColor: secondary ? TayyibColors.fillC(context) : labelColor,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+          elevation: 0,
+        ),
+        child: Text(label,
+            style: TayyibText.buttonLarge(
+                color: secondary ? TayyibColors.secondLbl(context) : bgColor)),
       ),
-      child: Text(label,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
-    ),
-  );
-}
+    );
+  }
 
   @override
   void dispose() {
     _tabController.dispose();
-    _ingredientsController.dispose();
-    _productNameController.dispose();
-    _barcodeController.dispose();
+    _ingredientsCtrl.dispose();
+    _productNameCtrl.dispose();
+    _barcodeCtrl.dispose();
     super.dispose();
+  }
+}
+
+// ─── Profile Bottom Sheet ──────────────────────────────────────────────────────
+
+class _ProfileSheet extends StatefulWidget {
+  final String username;
+  final String email;
+  final String madhab;
+  final VoidCallback onLogout;
+
+  const _ProfileSheet({
+    required this.username,
+    required this.email,
+    required this.madhab,
+    required this.onLogout,
+  });
+
+  @override
+  State<_ProfileSheet> createState() => _ProfileSheetState();
+}
+
+class _ProfileSheetState extends State<_ProfileSheet> {
+  late ThemeMode _mode;
+
+  @override
+  void initState() {
+    super.initState();
+    _mode = themeModeNotifier.value;
+  }
+
+  Future<void> _setMode(ThemeMode mode) async {
+    setState(() => _mode = mode);
+    themeModeNotifier.value = mode;
+    await PreferencesService.setThemeMode(mode);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lbl = TayyibColors.lbl(context);
+    final sec = TayyibColors.secondLbl(context);
+    final card = TayyibColors.cardBg(context);
+    final fill = TayyibColors.fillC(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      decoration: BoxDecoration(
+        color: card,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle
+          const SizedBox(height: 12),
+          Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: TayyibColors.sep(context),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 28),
+
+          // Avatar + name
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(color: fill, shape: BoxShape.circle),
+            child: Icon(Icons.person_rounded, size: 32, color: sec),
+          ),
+          const SizedBox(height: 14),
+          Text(widget.username, style: TayyibText.title2(color: lbl)),
+          const SizedBox(height: 4),
+          Text(widget.email, style: TayyibText.callout(color: sec)),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              color: fill,
+              borderRadius: BorderRadius.circular(50),
+            ),
+            child: Text(
+              widget.madhab.toUpperCase(),
+              style: TayyibText.caption1(color: sec),
+            ),
+          ),
+
+          const SizedBox(height: 28),
+
+          // ── Appearance row ──────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: fill,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              padding: const EdgeInsets.all(4),
+              child: Row(
+                children: [
+                  _modeChip(
+                    icon: Icons.wb_sunny_rounded,
+                    label: 'Light',
+                    active: _mode == ThemeMode.light,
+                    onTap: () => _setMode(ThemeMode.light),
+                    lbl: lbl,
+                    card: card,
+                  ),
+                  _modeChip(
+                    icon: Icons.brightness_auto_rounded,
+                    label: 'Auto',
+                    active: _mode == ThemeMode.system,
+                    onTap: () => _setMode(ThemeMode.system),
+                    lbl: lbl,
+                    card: card,
+                  ),
+                  _modeChip(
+                    icon: Icons.nightlight_round,
+                    label: 'Dark',
+                    active: _mode == ThemeMode.dark,
+                    onTap: () => _setMode(ThemeMode.dark),
+                    lbl: lbl,
+                    card: card,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // ── Sign out ────────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: GestureDetector(
+              onTap: widget.onLogout,
+              child: Container(
+                width: double.infinity,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: TayyibColors.red.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(50),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.logout_rounded,
+                        color: TayyibColors.red, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Sign out',
+                      style: TayyibText.buttonLarge(color: TayyibColors.red),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 28),
+        ],
+      ),
+    );
+  }
+
+  Widget _modeChip({
+    required IconData icon,
+    required String label,
+    required bool active,
+    required VoidCallback onTap,
+    required Color lbl,
+    required Color card,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: active ? card : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: active
+                ? [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2))
+                  ]
+                : [],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon,
+                  size: 20, color: active ? lbl : TayyibColors.secondaryLabel),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TayyibText.caption1(
+                  color: active ? lbl : TayyibColors.secondaryLabel,
+                  weight: active ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
