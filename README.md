@@ -1,44 +1,70 @@
-# Tayyib — Halal Food Checker (Flutter App)
+# Tayyib — Halal Ingredient Checker (Flutter Mobile App)
 
-> **Is it Halal?** Scan, type, or snap a photo — get instant halal verification.
+> **Is it Halal?** Instantly analyze food products using text, barcode, or photo — with full madhab-specific rulings.
 
-**Tayyib** is a beautiful Flutter mobile app that helps Muslims check if food products are halal according to their madhab.
+**Tayyib** is the official mobile app for the Tayyib.io Halal checker platform. Built with Flutter, it provides a beautiful, fast, and consistent experience across iOS and Android.
 
-**Backend API:** [tayyib.io](https://github.com/java-rakhmonaliev/tayyib.io)
+**Companion Backend:** [tayyib.io](https://github.com/java-rakhmonaliev/tayyib.io)
 
 ---
 
 ## Features
 
-- **Barcode Scanner** — Real-time scanning with mobile_scanner
-- **Text Analysis** — Paste ingredient lists manually
-- **Photo Analysis** — Take a picture of the label (OCR + AI)
-- **Madhab Selector** — Switch between Hanafi, Maliki, Shafi'i, Hanbali
-- **Beautiful UI** — Modern dark/light theme with smooth animations
-- **Offline Auth** — Secure local storage for tokens and user data
+### Core Analysis
+- **Text Analysis** — Paste any ingredient list for instant classification
+- **Barcode Scanner** — Real-time barcode scanning with Open Food Facts (3M+ products)
+- **Photo Analysis** — Upload or take a photo of the label; AI extracts ingredients + detects halal logos
+
+### Madhab Support
+- Full support for **Hanafi, Maliki, Shafi'i, and Hanbali** rulings
+- Easy madhab switcher in the app
+- Automatic classification based on your selected school of thought
+
+### Authentication
+- JWT-based login and registration
+- Profile management with madhab preference
+- Dark / Light / Auto theme support
+
+### UI/UX
+- Modern dark-first design system
+- Smooth animations and transitions
+- Fully responsive and accessible
 
 ---
 
 ## Tech Stack
 
-| Layer              | Technology                              |
-|--------------------|-----------------------------------------|
-| Framework          | Flutter 3.24                            |
-| Barcode Scanning   | mobile_scanner ^5.2.3                   |
-| HTTP Client        | http ^1.2.2                             |
-| Local Storage      | shared_preferences ^2.3.3               |
-| Theming            | Custom Space Grotesk + Neo-brutalist    |
-| State Management   | ValueNotifier + setState                |
-| Platforms          | iOS + Android                           |
+| Layer              | Technology                          |
+|--------------------|-------------------------------------|
+| Framework          | Flutter 3.x + Dart                  |
+| State Management   | Provider / Riverpod                 |
+| Barcode Scanning   | mobile_scanner                      |
+| HTTP Client        | http + dio                          |
+| Local Storage      | shared_preferences                  |
+| Theming            | Custom TayyibTheme (Space Grotesk)  |
+| Backend            | Django REST Framework + JWT         |
 
 ---
 
-## Quick Start
+## Screenshots
+
+| Sign In | Create Account | Text Analysis |
+|---------|----------------|---------------|
+| ![Sign In](screenshots/IMAGE\ 2026-05-04\ 21:57:16.jpg) | ![Create Account](screenshots/IMAGE\ 2026-05-04\ 21:57:13.jpg) | ![Text Analysis](screenshots/IMAGE\ 2026-05-04\ 21:57:19.jpg) |
+
+| Barcode | Image Analysis | Profile + Theme |
+|---------|----------------|-----------------|
+| ![Barcode](screenshots/IMAGE\ 2026-05-04\ 21:57:21.jpg) | ![Image Analysis](screenshots/IMAGE\ 2026-05-04\ 21:57:24.jpg) | ![Profile](screenshots/IMAGE\ 2026-05-04\ 21:57:26.jpg) |
+
+---
+
+## Getting Started (Development)
 
 ### Prerequisites
-- Flutter SDK 3.24+
-- iOS Simulator / Android Emulator (or physical device)
-- Backend running (or use production API)
+- Flutter SDK 3.0+
+- Dart 3.0+
+- Android Studio / Xcode
+- Backend running at `http://13.217.178.63`
 
 ### Setup
 
@@ -50,84 +76,18 @@ flutter pub get
 flutter run
 ```
 
-The app is pre-configured to use the production backend at `http://13.217.178.63`.
-
 ---
 
-## Project Structure
+## Design System
 
-```
-tayyib-app/
-├── lib/
-│   ├── main.dart                    # App entry + theme notifier
-│   ├── core/
-│   │   └── theme.dart               # Colors, typography, TayyibTheme
-│   ├── models/
-│   │   ├── user.dart
-│   │   └── analysis_result.dart
-│   ├── screens/
-│   │   ├── home_screen.dart
-│   │   ├── scanner_screen.dart
-│   │   ├── login_screen.dart
-│   │   ├── register_screen.dart
-│   │   └── ...
-│   ├── services/
-│   │   ├── api_service.dart         # analyzeText, analyzeBarcode, analyzeImage
-│   │   └── auth_service.dart        # register, login, profile, logout
-│   └── widgets/
-│       ├── bottom_bar.dart          # Animated tab bar
-│       ├── ui_components.dart       # TayyibCard, TayyibButton, etc.
-│       └── brutal_button.dart
-├── assets/
-│   ├── icon.png
-│   ├── 1.png
-│   └── 2.png
-├── pubspec.yaml
-└── README.md
-```
+The app uses a custom design system called **TayyibTheme**:
+- Font: Space Grotesk
+- Primary color: `#2DB87A` (Halal Green)
+- Error color: `#E84545` (Haram Red)
+- Warning color: `#F5A623` (Questionable Orange)
+- Dark mode-first approach
 
----
-
-## Key Screens
-
-- **Home** — Quick actions + recent analyses
-- **Scanner** — Full-screen barcode scanner with torch toggle
-- **Analyze** — Text input + photo upload
-- **Profile** — Madhab selector + account settings
-
----
-
-## How It Works
-
-1. User selects madhab (stored locally + synced to backend)
-2. App sends request to backend with `madhab` parameter
-3. Backend returns detailed breakdown + overall status
-4. Results shown with color-coded verdicts (green = halal, red = haram, orange = questionable)
-
----
-
-## Building for Release
-
-```bash
-# iOS
-flutter build ios --release
-
-# Android
-flutter build apk --release
-flutter build appbundle --release
-```
-
----
-
-## Screenshots
-
-*(Add screenshots here when available)*
-
----
-
-## Disclaimer
-
-Tayyib is an **assistive tool**, not a religious authority. Always consult a qualified scholar or certified halal body for important dietary decisions.
+The **web interface** (tayyib.io) was built to match this exact design system.
 
 ---
 
@@ -137,6 +97,6 @@ MIT License © 2026 Javokhirbek Rakhmonaliev
 
 ---
 
-**Built with Flutter + ❤️ for the Ummah**
+**Built with Flutter + Django + Groq AI** — for the Ummah.
 
 *Last updated: May 2026*
