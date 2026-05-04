@@ -5,6 +5,7 @@ import 'dart:io';
 import '../core/theme.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../services/community_service.dart';
 import '../services/preferences_service.dart';
 import '../models/analysis_result.dart';
 import 'result_screen.dart';
@@ -68,15 +69,21 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _analyzeBarcode() async {
-    if (_barcodeCtrl.text.trim().isEmpty) {
+    final barcode = _barcodeCtrl.text.trim();
+    if (barcode.isEmpty) {
       _err('Please enter a barcode.');
       return;
     }
     setState(() => _isLoading = true);
     try {
       final r = await ApiService.analyzeBarcode(
-          barcode: _barcodeCtrl.text.trim(), madhab: _madhab);
+        barcode: barcode,
+        madhab: _madhab,
+      );
       _go(r);
+    } on BarcodeNotFoundException {
+      // Don't show a red toast — show the helpful fallback sheet instead
+      _showProductNotFoundSheet(barcode);
     } catch (e) {
       _err(e.toString().replaceAll('Exception: ', ''));
     } finally {
@@ -110,6 +117,29 @@ class _HomeScreenState extends State<HomeScreen>
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.all(16),
     ));
+  }
+
+  void _showProductNotFoundSheet(String barcode) {
+    HapticFeedback.mediumImpact();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      isDismissible: true,
+      builder: (_) => _ProductNotFoundSheet(
+        barcode: barcode,
+        madhab: _madhab,
+        onScanLabel: () {
+          Navigator.pop(context);
+          // Switch to the Image tab and open camera immediately
+          _tabController.animateTo(2);
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) _pickImage(ImageSource.camera);
+          });
+        },
+        onRetry: () => Navigator.pop(context),
+      ),
+    );
   }
 
   void _showProfile() async {
@@ -192,7 +222,7 @@ class _HomeScreenState extends State<HomeScreen>
 
           const SizedBox(height: 20),
 
-          // Madhab chips — horizontal scroll, no alignment issues
+          // Madhab chips
           SizedBox(
             height: 36,
             child: ListView.separated(
@@ -252,7 +282,7 @@ class _HomeScreenState extends State<HomeScreen>
                 tabs: const [
                   Tab(text: 'Text'),
                   Tab(text: 'Barcode'),
-                  Tab(text: 'Image')
+                  Tab(text: 'Image'),
                 ],
               ),
             ),
@@ -266,7 +296,7 @@ class _HomeScreenState extends State<HomeScreen>
               children: [
                 _textTab(labelColor, cardColor, secColor),
                 _barcodeTab(labelColor, cardColor, secColor),
-                _imageTab(cardColor, secColor)
+                _imageTab(cardColor, secColor),
               ],
             ),
           ),
@@ -274,6 +304,8 @@ class _HomeScreenState extends State<HomeScreen>
       ),
     );
   }
+
+  // ─── Text Tab ──────────────────────────────────────────────────────────────
 
   Widget _textTab(Color lbl, Color card, Color sec) {
     return SingleChildScrollView(
@@ -326,6 +358,8 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  // ─── Barcode Tab ───────────────────────────────────────────────────────────
+
   Widget _barcodeTab(Color lbl, Color card, Color sec) {
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
@@ -369,6 +403,8 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  // ─── Image Tab ─────────────────────────────────────────────────────────────
+
   Widget _imageTab(Color card, Color sec) {
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
@@ -403,6 +439,8 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  // ─── Shared button ─────────────────────────────────────────────────────────
+
   Widget _btn(String label, VoidCallback onTap, {bool secondary = false}) {
     final labelColor = TayyibColors.lbl(context);
     final bgColor = TayyibColors.bg(context);
@@ -434,7 +472,412 @@ class _HomeScreenState extends State<HomeScreen>
   }
 }
 
-// ─── Profile Bottom Sheet ──────────────────────────────────────────────────────
+// ─── Product Not Found Sheet ──────────────────────────────────────────────────
+
+class _ProductNotFoundSheet extends StatefulWidget {
+  final String barcode;
+  final String madhab;
+  final VoidCallback onScanLabel;
+  final VoidCallback onRetry;
+
+  const _ProductNotFoundSheet({
+    required this.barcode,
+    required this.madhab,
+    required this.onScanLabel,
+    required this.onRetry,
+  });
+
+  @override
+  State<_ProductNotFoundSheet> createState() => _ProductNotFoundSheetState();
+}
+
+class _ProductNotFoundSheetState extends State<_ProductNotFoundSheet>
+    with SingleTickerProviderStateMixin {
+  bool _showCrowdsource = false;
+  bool _submitting = false;
+  bool _submitted = false;
+  final _nameCtrl = TextEditingController();
+
+  late final AnimationController _expandCtrl;
+  late final Animation<double> _expandAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _expandCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+    );
+    _expandAnim = CurvedAnimation(
+      parent: _expandCtrl,
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
+  void dispose() {
+    _expandCtrl.dispose();
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  void _toggleCrowdsource() {
+    HapticFeedback.selectionClick();
+    setState(() => _showCrowdsource = !_showCrowdsource);
+    if (_showCrowdsource) {
+      _expandCtrl.forward();
+    } else {
+      _expandCtrl.reverse();
+    }
+  }
+
+  Future<void> _submit() async {
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) return;
+
+    setState(() => _submitting = true);
+    try {
+      await CommunityService.submitMissingProduct(
+        barcode: widget.barcode,
+        productName: name,
+      );
+      HapticFeedback.lightImpact();
+      setState(() {
+        _submitted = true;
+        _submitting = false;
+      });
+      await Future.delayed(const Duration(milliseconds: 1400));
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      setState(() => _submitting = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+            e.toString().replaceAll('Exception: ', ''),
+            style: TayyibText.callout(color: Colors.white),
+          ),
+          backgroundColor: TayyibColors.red,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+        ));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lbl = TayyibColors.lbl(context);
+    final sec = TayyibColors.secondLbl(context);
+    final card = TayyibColors.cardBg(context);
+    final fill = TayyibColors.fillC(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      decoration: BoxDecoration(
+        color: card,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Drag handle ─────────────────────────────────────────────────
+          const SizedBox(height: 12),
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: TayyibColors.sep(context),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // ── Status zone ─────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: fill,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(Icons.inventory_2_outlined, color: sec, size: 24),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Product not found',
+                        style: TayyibText.headline(color: lbl),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Not in Open Food Facts or our database.',
+                        style: TayyibText.footnote(color: sec),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          // Barcode chip
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: fill,
+                borderRadius: BorderRadius.circular(50),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.tag_rounded, size: 12, color: sec),
+                  const SizedBox(width: 4),
+                  Text(
+                    widget.barcode,
+                    style: TayyibText.caption1(color: sec),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+          Divider(
+              height: 1,
+              color: TayyibColors.sep(context),
+              indent: 20,
+              endIndent: 20),
+          const SizedBox(height: 20),
+
+          // ── Primary CTA: Scan label ──────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _SheetActionButton(
+              icon: Icons.photo_camera_outlined,
+              iconColor: TayyibColors.blue,
+              iconBg: TayyibColors.blue.withOpacity(isDark ? 0.18 : 0.1),
+              title: 'Scan the ingredient label',
+              subtitle: 'Point camera at the back of the package',
+              onTap: widget.onScanLabel,
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // ── Secondary CTA: Crowdsource ───────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _SheetActionButton(
+                  icon: _submitted
+                      ? Icons.check_circle_rounded
+                      : Icons.people_outline_rounded,
+                  iconColor:
+                      _submitted ? TayyibColors.green : TayyibColors.orange,
+                  iconBg:
+                      (_submitted ? TayyibColors.green : TayyibColors.orange)
+                          .withOpacity(isDark ? 0.18 : 0.1),
+                  title:
+                      _submitted ? 'Thanks for helping!' : 'Help the community',
+                  subtitle: _submitted
+                      ? 'Product name saved for others'
+                      : 'Do you know this product? Tell us',
+                  trailing: _submitted
+                      ? null
+                      : Icon(
+                          _showCrowdsource
+                              ? Icons.keyboard_arrow_up_rounded
+                              : Icons.keyboard_arrow_down_rounded,
+                          color: sec,
+                          size: 20,
+                        ),
+                  onTap: _submitted ? null : _toggleCrowdsource,
+                ),
+
+                // Expandable input
+                SizeTransition(
+                  sizeFactor: _expandAnim,
+                  axisAlignment: -1,
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 12),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: fill,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: TextField(
+                          controller: _nameCtrl,
+                          style: TayyibText.body(color: lbl),
+                          textCapitalization: TextCapitalization.words,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (_) => _submit(),
+                          decoration: InputDecoration(
+                            hintText: 'Product name (e.g. Oreo Original)',
+                            hintStyle: TayyibText.body(
+                                color: TayyibColors.tertiaryLabel),
+                            filled: true,
+                            fillColor: fill,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(
+                                  color: TayyibColors.primary, width: 1.5),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 14),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: FilledButton(
+                          onPressed: _submitting ? null : _submit,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: TayyibColors.primary,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(50)),
+                            elevation: 0,
+                          ),
+                          child: _submitting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white),
+                                  ),
+                                )
+                              : Text('Submit', style: TayyibText.buttonLarge()),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // ── Ghost: try again ─────────────────────────────────────────────
+          Center(
+            child: GestureDetector(
+              onTap: widget.onRetry,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Text(
+                  'Try scanning again',
+                  style: TayyibText.callout(color: sec),
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Reusable action row inside the sheet ─────────────────────────────────────
+
+class _SheetActionButton extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBg;
+  final String title;
+  final String subtitle;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+
+  const _SheetActionButton({
+    required this.icon,
+    required this.iconColor,
+    required this.iconBg,
+    required this.title,
+    required this.subtitle,
+    this.trailing,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final lbl = TayyibColors.lbl(context);
+    final sec = TayyibColors.secondLbl(context);
+    final fill = TayyibColors.fillC(context);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: fill,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: TayyibText.callout(
+                          color: lbl, weight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(subtitle, style: TayyibText.footnote(color: sec)),
+                ],
+              ),
+            ),
+            if (trailing != null) ...[
+              const SizedBox(width: 8),
+              trailing!,
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Profile Bottom Sheet ─────────────────────────────────────────────────────
 
 class _ProfileSheet extends StatefulWidget {
   final String username;
@@ -474,7 +917,6 @@ class _ProfileSheetState extends State<_ProfileSheet> {
     final sec = TayyibColors.secondLbl(context);
     final card = TayyibColors.cardBg(context);
     final fill = TayyibColors.fillC(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
@@ -485,7 +927,6 @@ class _ProfileSheetState extends State<_ProfileSheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle
           const SizedBox(height: 12),
           Container(
             width: 36,
@@ -523,7 +964,7 @@ class _ProfileSheetState extends State<_ProfileSheet> {
 
           const SizedBox(height: 28),
 
-          // ── Appearance row ──────────────────────────────────────────────────
+          // Appearance picker
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Container(
@@ -565,7 +1006,7 @@ class _ProfileSheetState extends State<_ProfileSheet> {
 
           const SizedBox(height: 12),
 
-          // ── Sign out ────────────────────────────────────────────────────────
+          // Sign out
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: GestureDetector(
@@ -583,10 +1024,8 @@ class _ProfileSheetState extends State<_ProfileSheet> {
                     Icon(Icons.logout_rounded,
                         color: TayyibColors.red, size: 18),
                     const SizedBox(width: 8),
-                    Text(
-                      'Sign out',
-                      style: TayyibText.buttonLarge(color: TayyibColors.red),
-                    ),
+                    Text('Sign out',
+                        style: TayyibText.buttonLarge(color: TayyibColors.red)),
                   ],
                 ),
               ),

@@ -265,10 +265,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
     TextInputType keyboard = TextInputType.text,
     Widget? suffix,
   }) {
+    final radius = BorderRadius.vertical(
+      top: isTop ? const Radius.circular(16) : Radius.zero,
+      bottom: isBottom ? const Radius.circular(16) : Radius.zero,
+    );
     return TextField(
       controller: ctrl,
       obscureText: obscure,
       keyboardType: keyboard,
+      cursorColor: TayyibColors.lbl(context),
       style: TayyibText.body(color: TayyibColors.lbl(context)),
       decoration: InputDecoration(
         hintText: hint,
@@ -279,11 +284,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
         filled: true,
         fillColor: TayyibColors.cardBg(context),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.vertical(
-            top: isTop ? const Radius.circular(16) : Radius.zero,
-            bottom: isBottom ? const Radius.circular(16) : Radius.zero,
-          ),
+          borderRadius: radius,
           borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: radius,
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: radius,
+          borderSide: BorderSide(
+            color: TayyibColors.lbl(context).withOpacity(0.25),
+            width: 1.5,
+          ),
         ),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 16),

@@ -78,4 +78,31 @@ class CommunityService {
       throw Exception(jsonDecode(response.body)['error'] ?? 'Vote failed.');
     }
   }
+
+  /// Called from the "Product not found" fallback sheet.
+  /// Registers the barcode + product name in the community database
+  /// so the next person who scans it gets instant info.
+  static Future<void> submitMissingProduct({
+    required String barcode,
+    required String productName,
+  }) async {
+    final token = await AuthService.getAccessToken();
+    if (token == null) throw Exception('Please log in to help the community.');
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/community/missing/'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'barcode': barcode,
+        'product_name': productName,
+      }),
+    );
+    if (response.statusCode != 201) {
+      throw Exception(
+        jsonDecode(response.body)['error'] ?? 'Submission failed.',
+      );
+    }
+  }
 }

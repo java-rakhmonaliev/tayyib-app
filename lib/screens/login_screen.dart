@@ -195,9 +195,14 @@ class _LoginScreenState extends State<LoginScreen> {
     bool isBottom = false,
     Widget? suffix,
   }) {
+    final radius = BorderRadius.vertical(
+      top: isTop ? const Radius.circular(16) : Radius.zero,
+      bottom: isBottom ? const Radius.circular(16) : Radius.zero,
+    );
     return TextField(
       controller: controller,
       obscureText: obscure,
+      cursorColor: TayyibColors.lbl(context),
       style: TayyibText.body(color: TayyibColors.lbl(context)),
       decoration: InputDecoration(
         hintText: hint,
@@ -208,11 +213,19 @@ class _LoginScreenState extends State<LoginScreen> {
         filled: true,
         fillColor: TayyibColors.cardBg(context),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.vertical(
-            top: isTop ? const Radius.circular(16) : Radius.zero,
-            bottom: isBottom ? const Radius.circular(16) : Radius.zero,
-          ),
+          borderRadius: radius,
           borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: radius,
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: radius,
+          borderSide: BorderSide(
+            color: TayyibColors.lbl(context).withOpacity(0.25),
+            width: 1.5,
+          ),
         ),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
