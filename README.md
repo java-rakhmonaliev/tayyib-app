@@ -47,14 +47,13 @@
 ---
 
 ## Screenshots
-
 | Sign In | Create Account | Text Analysis |
 |---------|----------------|---------------|
-| ![Sign In](screenshots/IMAGE\ 2026-05-04\ 21:57:16.jpg) | ![Create Account](screenshots/IMAGE\ 2026-05-04\ 21:57:13.jpg) | ![Text Analysis](screenshots/IMAGE\ 2026-05-04\ 21:57:19.jpg) |
+| ![Sign In](screenshots/flutter/signin.jpg) | ![Create Account](screenshots/flutter/create_account.jpg) | ![Text Analysis](screenshots/flutter/text_analysis.jpg) |
 
-| Barcode | Image Analysis | Profile + Theme |
-|---------|----------------|-----------------|
-| ![Barcode](screenshots/IMAGE\ 2026-05-04\ 21:57:21.jpg) | ![Image Analysis](screenshots/IMAGE\ 2026-05-04\ 21:57:24.jpg) | ![Profile](screenshots/IMAGE\ 2026-05-04\ 21:57:26.jpg) |
+| Barcode | Image Analysis | Profile |
+|---------|----------------|---------|
+| ![Barcode](screenshots/flutter/barcode.jpg) | ![Image Analysis](screenshots/flutter/image_analysis.jpg) | ![Profile](screenshots/flutter/profile.jpg) |
 
 ---
 
